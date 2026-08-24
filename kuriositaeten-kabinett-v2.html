@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuriositäten-Kabinett</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     FIREBASE (optional, aber empfohlen für globale Bewertungen)
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<style>
+  :root {
+    --ink: #14231C;
+    --parchment: #EDE4D3;
+    --parchment-dim: #E1D5BC;
+    --brass: #B8935B;
+    --brass-bright: #D3AC72;
+    --sage: #7C8B6F;
+    --stamp-red: #A13D34;
+    --deep-green: #1B2B22;
+    --card-shadow: rgba(20, 35, 28, 0.35);
+    --radius-card: 6px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: var(--deep-green);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(184,147,91,0.06), transparent 45%),
+      radial-gradient(circle at 80% 80%, rgba(184,147,91,0.05), transparent 50%);
+    color: var(--parchment);
+    font-family: 'Source Serif 4', Georgia, serif;
+  }
+
+  .stage {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+  }
+
+  /* ---------- Header ---------- */
+  header.kabinett-header {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(184,147,91,0.35);
+    padding-bottom: 16px;
+  }
+
+  h1.brand {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(22px, 4vw, 30px);
+    letter-spacing: 0.01em;
+    margin: 0;
+    color: var(--parchment);
+  }
+
+  h1.brand span {
+    color: var(--brass-bright);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .archive-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sage);
+  }
+
+  .icon-btn {
+    background: rgba(237,228,211,0.08);
+    border: 1px solid rgba(184,147,91,0.35);
+    color: var(--parchment-dim);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .icon-btn:hover { background: var(--brass); color: var(--ink); }
+
+  /* ---------- Status banner ---------- */
+  .status-banner {
+    width: 100%;
+    max-width: 720px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--sage);
+    background: rgba(184,147,91,0.08);
+    border: 1px dashed rgba(184,147,91,0.4);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  .status-banner b { color: var(--brass-bright); }
+
+  /* ---------- Filters ---------- */
+  .filter-row {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .filter-tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+    background: rgba(237, 228, 211, 0.06);
+    border: 1px solid rgba(184,147,91,0.3);
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .filter-tab:hover { border-color: var(--brass-bright); color: var(--parchment); }
+
+  .filter-tab.active {
+    background: var(--brass);
+    color: var(--ink);
+    border-color: var(--brass);
+    font-weight: 600;
+  }
+
+  .filter-tab:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Card ---------- */
+  .card {
+    width: 100%;
+    max-width: 720px;
+    background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dim) 100%);
+    color: var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: 0 30px 60px -20px var(--card-shadow), 0 2px 0 rgba(184,147,91,0.6) inset;
+    padding: 36px 40px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border: 1px solid rgba(20,35,28,0.15);
+    pointer-events: none;
+    border-radius: 3px;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 26px;
+  }
+
+  .catalog-no {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: var(--sage);
+  }
+
+  .catalog-no b {
+    color: var(--ink);
+    font-size: 16px;
+    letter-spacing: 0.02em;
+  }
+
+  .category-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--parchment);
+    padding: 5px 11px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .fact-text {
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: clamp(21px, 3.4vw, 28px);
+    line-height: 1.4;
+    margin: 0 0 30px;
+    min-height: 110px;
+  }
+
+  /* ---------- Krassheits-Messer (gauge) ---------- */
+  .gauge-wrap {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 26px;
+    padding: 14px 16px;
+    background: rgba(20,35,28,0.05);
+    border: 1px solid rgba(20,35,28,0.1);
+    border-radius: 4px;
+  }
+
+  .gauge { width: 92px; height: 56px; flex-shrink: 0; }
+
+  .gauge-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--sage);
+  }
+
+  .gauge-meta b { color: var(--ink); font-size: 13px; }
+
+  .gauge-needle {
+    transform-origin: 46px 50px;
+    transition: transform 0.6s cubic-bezier(.25,1.4,.4,1);
+  }
+
+  /* ---------- Rating buttons ---------- */
+  .rate-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+
+  .rate-btn {
+    flex: 1 1 auto;
+    min-width: 100px;
+    font-family: 'Source Serif 4', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    border: 1.5px solid rgba(20,35,28,0.25);
+    border-radius: 4px;
+    padding: 11px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+  }
+
+  .rate-btn:hover { border-color: var(--ink); }
+  .rate-btn:active { transform: scale(0.97); }
+  .rate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .rate-btn.chosen {
+    background: var(--ink);
+    color: var(--parchment);
+    border-color: var(--ink);
+  }
+
+  /* ---------- Share row ---------- */
+  .share-row {
+    margin-bottom: 22px;
+  }
+
+  .share-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sage);
+    background: transparent;
+    border: 1px dashed rgba(20,35,28,0.3);
+    border-radius: 4px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .share-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* ---------- Next row ---------- */
+  .next-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 1px dashed rgba(20,35,28,0.2);
+    padding-top: 22px;
+  }
+
+  .stamp-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--parchment);
+    background: var(--stamp-red);
+    border: none;
+    border-radius: 4px;
+    padding: 13px 22px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #7C2C26;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  .stamp-btn:hover { filter: brightness(1.05); }
+  .stamp-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7C2C26; }
+
+  .position-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--sage);
+  }
+
+  footer.kabinett-footer {
+    max-width: 720px;
+    text-align: center;
+    color: var(--sage);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    margin-top: 34px;
+    line-height: 1.7;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--parchment);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 10px 18px;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 50;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ---------- Modal (Admin) ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20,35,28,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    width: 100%;
+    max-width: 440px;
+    background: var(--parchment);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 28px 26px;
+    position: relative;
+  }
+
+  .modal h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    margin: 0 0 6px;
+  }
+
+  .modal p.sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--sage);
+    margin: 0 0 20px;
+    line-height: 1.6;
+  }
+
+  .modal label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sage);
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  .modal input[type="password"],
+  .modal input[type="text"],
+  .modal select,
+  .modal textarea {
+    width: 100%;
+    font-family: 'Source Serif 4', serif;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1.5px solid rgba(20,35,28,0.25);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+  }
+
+  .modal textarea { min-height: 90px; resize: vertical; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .modal-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+  }
+
+  .modal-btn.primary { background: var(--ink); color: var(--parchment); }
+  .modal-btn.secondary { background: transparent; color: var(--sage); border: 1px solid rgba(20,35,28,0.2); }
+
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: var(--sage);
+    cursor: pointer;
+  }
+
+  .modal-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--stamp-red);
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  .modal-success {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #2E5D3A;
+    margin-top: 14px;
+  }
+
+  @media (max-width: 520px) {
+    .card { padding: 26px 22px 24px; }
+    .card-top { flex-direction: column; align-items: flex-start; }
+    .rate-btn { min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gauge-needle, .stamp-btn, .rate-btn { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <header class="kabinett-header">
+    <h1 class="brand">Kuriositäten<span>-Kabinett</span></h1>
+    <div class="header-right">
+      <div class="archive-count" id="archiveCount">Archiv — —</div>
+      <button class="icon-btn" id="adminOpenBtn" title="Verwalten" aria-label="Admin-Bereich öffnen">⚙</button>
+    </div>
+  </header>
+
+  <div class="status-banner" id="statusBanner"></div>
+
+  <nav class="filter-row" id="filterRow" aria-label="Kategorien filtern"></nav>
+
+  <main class="card" role="region" aria-label="Kuriositäts-Karteikarte">
+    <div class="card-top">
+      <div class="catalog-no">Katalog-Nr.<br><b id="catalogNo">No. 0000</b></div>
+      <div class="category-label" id="categoryLabel">KATEGORIE</div>
+    </div>
+
+    <p class="fact-text" id="factText">Lädt …</p>
+
+    <div class="gauge-wrap">
+      <svg class="gauge" viewBox="0 0 92 56" aria-hidden="true">
+        <path d="M6 50 A40 40 0 0 1 86 50" fill="none" stroke="rgba(20,35,28,0.15)" stroke-width="8" stroke-linecap="round"/>
+        <path id="gaugeArc" d="M6 50 A40 40 0 0 1 86 50" fill="none" stroke="#B8935B" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 126"/>
+        <g class="gauge-needle" id="gaugeNeedle">
+          <line x1="46" y1="50" x2="46" y2="16" stroke="#14231C" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="46" cy="50" r="4" fill="#14231C"/>
+        </g>
+      </svg>
+      <div class="gauge-meta">
+        Krassheits-Messer<br>
+        <b id="gaugeLabel">Meh</b> · <span id="voteCount">0 Bewertungen</span>
+      </div>
+    </div>
+
+    <div class="rate-row" role="group" aria-label="Dieses Kuriosum bewerten">
+      <button class="rate-btn" data-value="1">😐 Meh</button>
+      <button class="rate-btn" data-value="2">😮 Krass</button>
+      <button class="rate-btn" data-value="3">🤯 Wahnsinn</button>
+    </div>
+
+    <div class="share-row">
+      <button class="share-btn" id="shareBtn">↗ Dieses Kuriosum teilen</button>
+    </div>
+
+    <div class="next-row">
+      <span class="position-note" id="positionNote">Exemplar 1 von 100</span>
+      <button class="stamp-btn" id="nextBtn">Nächstes Kuriosum ▸</button>
+    </div>
+  </main>
+
+  <footer class="kabinett-footer">
+    Alle Exemplare sorgfältig ausgewählt und katalogisiert.<br>
+    <span id="footerNote">Bewertungen gelten nur für diese Sitzung.</span>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     ADMIN-MODAL — Passwort eingeben, dann eigene Fakten hinzufügen
+     ============================================================ -->
+<div class="modal-overlay" id="adminOverlay">
+  <div class="modal">
+    <button class="modal-close" id="adminCloseBtn" aria-label="Schließen">✕</button>
+
+    <div id="adminGate">
+      <h2>Verwalter-Zugang</h2>
+      <p class="sub">Nur für dich: hier kannst du neue Kuriositäten hinzufügen.</p>
+      <label for="adminPass">Passwort</label>
+      <input type="password" id="adminPass" placeholder="•••••••">
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="adminUnlockBtn">Freischalten</button>
+        <button class="modal-btn secondary" id="adminCancelBtn">Abbrechen</button>
+      </div>
+      <div class="modal-note" id="adminGateError" style="display:none;">Falsches Passwort.</div>
+    </div>
+
+    <div id="adminForm" style="display:none;">
+      <h2>Neues Kuriosum</h2>
+      <p class="sub">Wird im Archiv gespeichert und ist danach für alle sichtbar.</p>
+
+      <label for="factCategory">Kategorie</label>
+      <select id="factCategory"></select>
+
+      <label for="factNewCategory">…oder neue Kategorie</label>
+      <input type="text" id="factNewCategory" placeholder="z. B. Sport">
+
+      <label for="factText2">Fakt</label>
+      <textarea id="factText2" placeholder="Der Fakt, kurz und knackig formuliert …"></textarea>
+
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="factSubmitBtn">Hinzufügen</button>
+        <button class="modal-btn secondary" id="adminCancelBtn2">Schließen</button>
+      </div>
+      <div class="modal-note" id="factError" style="display:none;"></div>
+      <div class="modal-success" id="factSuccess" style="display:none;">Kuriosum wurde ins Archiv aufgenommen.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     1) FIREBASE-KONFIGURATION
+     ------------------------------------------------------------
+     Trage hier deine eigenen Werte aus der Firebase-Console ein
+     (Projekteinstellungen → Allgemein → "Firebase SDK snippet" →
+     Config). So lange hier die Platzhalter stehen, läuft die
+     Seite im Offline-Modus: alles funktioniert, aber Bewertungen
+     und neue Fakten bleiben nur in diesem Browser-Tab erhalten.
+
+     WICHTIG: Setze in deiner Firebase Realtime Database die
+     Regeln so, dass "votes" und "customFacts" beschreibbar sind,
+     z. B. (einfachste, unsichere Variante für ein privates
+     Spaßprojekt):
+       { "rules": { ".read": true, ".write": true } }
+     ============================================================ */
+  const firebaseConfig = {
+    apiKey: "AIzaSyDV_JiF7JuHUtrwXRuiNCLodJh_NamRwFQ",
+    authDomain: "fakten-website.firebaseapp.com",
+    databaseURL: "https://fakten-website-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "fakten-website",
+    storageBucket: "fakten-website.firebasestorage.app",
+    messagingSenderId: "489067963407",
+    appId: "1:489067963407:web:bc374c5b8bc4ace6cd2f7a"
+  };
+
+  const ADMIN_PASSWORD = "kuriosum"; // <- gerne in etwas Eigenes ändern
+
+  let db = null;
+  let firebaseEnabled = false;
+
+  function tryInitFirebase() {
+    const isPlaceholder = firebaseConfig.apiKey === "DEIN_API_KEY"
+      || firebaseConfig.databaseURL === "HIER_DEINE_REALTIME_DATABASE_URL_EINTRAGEN";
+    if (isPlaceholder) {
+      firebaseEnabled = false;
+      return;
+    }
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      firebaseEnabled = true;
+    } catch (e) {
+      console.error("Firebase-Initialisierung fehlgeschlagen:", e);
+      firebaseEnabled = false;
+    }
+  }
+
+  /* ============================================================
+     2) DIE GRUND-FAKTEN (fest im Code, immer verfügbar)
+     ============================================================ */
+  const builtinFacts = [
+    { cat: "Natur", text: "Oktopusse haben drei Herzen und blaues Blut, weil ihr Sauerstofftransport auf Kupfer statt Eisen basiert." },
+    { cat: "Geschichte", text: "Der Hundertjährige Krieg zwischen England und Frankreich dauerte tatsächlich 116 Jahre." },
+    { cat: "Wissenschaft", text: "Ein Blitz ist etwa fünfmal heißer als die Oberfläche der Sonne." },
+    { cat: "Mensch", text: "Menschliche Knochen sind, im Verhältnis zu ihrem Gewicht, stärker als Stahl." },
+    { cat: "Natur", text: "Bienen können einfache Mathematik lernen, etwa Addieren und Subtrahieren mit kleinen Zahlen." },
+    { cat: "Geschichte", text: "Napoleon war mit 1,68 m für seine Zeit durchschnittlich groß, nicht auffällig klein." },
+    { cat: "Wirtschaft", text: "Die erste dokumentierte Wirtschaftsblase, die Tulpenmanie, ließ 1637 einzelne Tulpenzwiebeln mehr kosten als ein Amsterdamer Stadthaus." },
+    { cat: "Technik", text: "Die erste E-Mail wurde 1971 verschickt, lange bevor es das World Wide Web gab." },
+    { cat: "Wissenschaft", text: "Honig verdirbt praktisch nie, archäologisch fand man in ägyptischen Gräbern Jahrtausende alten, noch essbaren Honig." },
+    { cat: "Natur", text: "Eine Gruppe von Flamingos wird auf Englisch 'flamboyance' genannt." },
+    { cat: "Geschichte", text: "Cleopatra lebte zeitlich näher an der Mondlandung als an dem Bau der großen Pyramide von Gizeh." },
+    { cat: "Mensch", text: "Das menschliche Gehirn verbraucht etwa 20 Prozent der gesamten Energie des Körpers, obwohl es nur rund 2 Prozent des Körpergewichts ausmacht." },
+    { cat: "Wissenschaft", text: "Wasser kann gleichzeitig kochen und gefrieren, dieser Punkt heißt Tripelpunkt." },
+    { cat: "Technik", text: "Die erste Computer-Maus bestand aus einem Holzgehäuse mit zwei Metallrädern." },
+    { cat: "Wirtschaft", text: "Monopoly wurde ursprünglich erfunden, um vor den Gefahren von Landmonopolen zu warnen, nicht um sie zu feiern." },
+    { cat: "Natur", text: "Seepferdchen-Männchen tragen die befruchteten Eier aus und bringen die Jungen zur Welt." },
+    { cat: "Geschichte", text: "Die Berliner Mauer stand kürzer, als Deutschland seit ihrem Fall bereits wiedervereint ist." },
+    { cat: "Wissenschaft", text: "Ein Tag auf der Venus dauert länger als ein Jahr auf der Venus." },
+    { cat: "Mensch", text: "Fingerabdrücke bilden sich bereits im Mutterleib, meist ab der 13. bis 19. Schwangerschaftswoche." },
+    { cat: "Technik", text: "Der erste Computerbug war wörtlich ein Bug: 1947 klemmte eine Motte in einem Relais eines Harvard-Rechners." },
+    { cat: "Natur", text: "Krähen können sich menschliche Gesichter über Jahre merken und sie gezielt meiden oder aufsuchen." },
+    { cat: "Geschichte", text: "Oxford University existierte bereits, bevor die Azteken das Reich Tenochtitlan gründeten." },
+    { cat: "Wirtschaft", text: "Der Ausdruck 'Blaupause' stammt aus einem echten Kopierverfahren mit blau eingefärbtem Papier für technische Zeichnungen." },
+    { cat: "Wissenschaft", text: "Bananen sind schwach radioaktiv, weil sie viel Kalium-40 enthalten, allerdings völlig unbedenklich." },
+    { cat: "Mensch", text: "Menschen teilen etwa 60 Prozent ihrer DNA mit Bananen." },
+    { cat: "Natur", text: "Manche Quallenarten sind biologisch nahezu unsterblich, weil sie sich bei Verletzung in ein früheres Lebensstadium zurückverwandeln können." },
+    { cat: "Geschichte", text: "Als die Pyramiden von Gizeh gebaut wurden, gab es bereits Wollmammuts, die auf einer Insel in Sibirien überlebten." },
+    { cat: "Technik", text: "Die Bordcomputer der Apollo-11-Mission hatten weniger Rechenleistung als ein heutiger Taschenrechner." },
+    { cat: "Wirtschaft", text: "Der Nobelpreis wurde von Alfred Nobel gestiftet, dem Erfinder des Dynamits, teils aus Reue über dessen Zerstörungskraft." },
+    { cat: "Wissenschaft", text: "Ein einzelner Blitzeinschlag erzeugt genug Energie, um ein Toastbrot etwa 100.000 Mal zu toasten, allerdings viel zu kurz und unkontrolliert dafür." },
+    { cat: "Natur", text: "Elefanten sind eines der wenigen Tiere, die sich selbst im Spiegel erkennen können." },
+    { cat: "Geschichte", text: "Die Wikinger nannten Grönland absichtlich so, um Siedler anzulocken, obwohl es größtenteils von Eis bedeckt ist." },
+    { cat: "Mensch", text: "Der Mensch schrumpft im Laufe des Tages um bis zu zwei Zentimeter, weil sich die Bandscheiben zusammendrücken." },
+    { cat: "Technik", text: "Das Wort 'Roboter' stammt aus einem tschechischen Theaterstück von 1920 und leitet sich vom Wort für Zwangsarbeit ab." },
+    { cat: "Wirtschaft", text: "Island erwog einst offiziell, den Wert seiner Währung an den Preis von Fisch zu koppeln." },
+    { cat: "Wissenschaft", text: "Glas ist keine langsam fließende Flüssigkeit, wie oft behauptet, sondern ein amorpher Feststoff; alte Fenster sind unten nur wegen der Herstellung dicker." },
+    { cat: "Natur", text: "Nacktmulle empfinden praktisch keinen Schmerz durch Säure oder Capsaicin und bekommen fast nie Krebs." },
+    { cat: "Geschichte", text: "Die Magna Carta von 1215 wurde ursprünglich als gescheitertes politisches Dokument angesehen und erst Jahrhunderte später zum Symbol." },
+    { cat: "Mensch", text: "Das menschliche Auge kann theoretisch das Licht einer einzelnen Kerze noch aus etwa 48 Kilometern Entfernung wahrnehmen, bei perfekter Dunkelheit." },
+    { cat: "Technik", text: "Die erste SMS der Geschichte lautete 1992 schlicht 'Merry Christmas'." },
+    { cat: "Wirtschaft", text: "Während der deutschen Hyperinflation der 1920er-Jahre war Geld zeitweise buchstäblich günstiger zum Verbrennen als Kohle." },
+    { cat: "Wissenschaft", text: "Der Mount Everest wächst jedes Jahr um wenige Millimeter weiter, weil sich die tektonischen Platten darunter noch bewegen." },
+    { cat: "Natur", text: "Kakadus können im Takt zur Musik tanzen, was Forscher lange nur bei Menschen für möglich hielten." },
+    { cat: "Geschichte", text: "Julius Cäsar wurde in seiner Jugend von Piraten entführt und drohte ihnen danach scherzhaft, sie später kreuzigen zu lassen, was er tatsächlich tat." },
+    { cat: "Mensch", text: "Föten können im Mutterleib bereits Geschmäcker über das Fruchtwasser wahrnehmen." },
+    { cat: "Technik", text: "Ein moderner Kühlschrank verbraucht heute deutlich weniger Strom als ein Toaster aus den 1990ern." },
+    { cat: "Wirtschaft", text: "Der IKEA-Katalog wurde über viele Jahre in höherer Auflage gedruckt als die Bibel." },
+    { cat: "Wissenschaft", text: "Ein Teelöffel Neutronenstern-Materie würde auf der Erde etwa eine Milliarde Tonnen wiegen." },
+    { cat: "Natur", text: "Manche Papageienarten erfinden individuelle Rufnamen für ihre eigenen Küken." },
+
+    { cat: "Geografie", text: "Russland erstreckt sich über elf Zeitzonen, mehr als jedes andere Land der Welt." },
+    { cat: "Geografie", text: "Die Sahara war vor etwa 10.000 Jahren eine grüne Savanne mit Seen und Flusspferden." },
+    { cat: "Geografie", text: "Alaska ist gleichzeitig der westlichste und, über die Aleuten, der östlichste Punkt der USA, weil sie den 180. Längengrad kreuzen." },
+    { cat: "Geografie", text: "Der Vatikanstaat ist mit rund 0,44 Quadratkilometern der kleinste anerkannte Staat der Welt." },
+    { cat: "Geografie", text: "Kanada hat mehr Seen als der Rest der Welt zusammen." },
+    { cat: "Geografie", text: "Der Nil fließt von Süden nach Norden, entgegen der intuitiven Erwartung vieler Menschen." },
+    { cat: "Geografie", text: "Chile misst über 4.300 Kilometer in der Länge, ist an manchen Stellen aber nur rund 90 Kilometer breit." },
+    { cat: "Geografie", text: "Point Nemo im Pazifik ist der von Land am weitesten entfernte Ort der Erde; die nächsten Menschen sind oft Astronauten auf der ISS." },
+
+    { cat: "Natur", text: "Delfine geben sich gegenseitig individuelle Pfeiflaute, die wie Namen funktionieren." },
+    { cat: "Natur", text: "Der Herzschlag eines Blauwals ist so laut, dass er unter Wasser über Kilometer hinweg messbar ist." },
+    { cat: "Natur", text: "Manche Pilze bilden unterirdische Netzwerke, über die Bäume Nährstoffe und Warnsignale austauschen." },
+    { cat: "Natur", text: "Kolibris können als einzige Vögel rückwärts fliegen." },
+    { cat: "Natur", text: "Der Kompassbau mancher Zugvögel nutzt vermutlich das Magnetfeld der Erde über spezielle Sinneszellen im Auge." },
+    { cat: "Natur", text: "Termitenhügel sind so gebaut, dass sie im Inneren aktiv belüftet werden und die Temperatur fast konstant halten." },
+    { cat: "Natur", text: "Manche Frösche können im Winter fast vollständig durchfrieren und im Frühling wieder auftauen." },
+
+    { cat: "Geschichte", text: "Die Große Chinesische Mauer wurde über Jahrhunderte von verschiedenen Dynastien in Etappen gebaut, nicht als ein durchgehendes Projekt." },
+    { cat: "Geschichte", text: "Im antiken Rom galt Fischsauce (Garum) als Luxusgewürz und wurde über weite Handelswege verschifft." },
+    { cat: "Geschichte", text: "Die Bibliothek von Alexandria brannte vermutlich nicht in einem einzigen Ereignis, sondern verfiel über Jahrhunderte durch mehrere Vorfälle." },
+    { cat: "Geschichte", text: "Der Buchdruck mit beweglichen Lettern existierte in Korea vor Gutenberg, verbreitete sich dort aber nicht in vergleichbarem Ausmaß." },
+    { cat: "Geschichte", text: "Die Französische Revolution führte kurzzeitig einen komplett neuen Kalender mit Zehn-Tage-Wochen ein." },
+    { cat: "Geschichte", text: "Die Wikinger erreichten Nordamerika rund 500 Jahre vor Kolumbus, siedelten dort aber nur kurz." },
+
+    { cat: "Wissenschaft", text: "Diamanten und die Graphitmine eines Bleistifts bestehen beide vollständig aus Kohlenstoff, nur anders angeordnet." },
+    { cat: "Wissenschaft", text: "Schall braucht im Wasser nur etwa ein Viertel der Zeit, die er in Luft benötigt, um dieselbe Strecke zurückzulegen." },
+    { cat: "Wissenschaft", text: "Die Sonne macht über 99 Prozent der gesamten Masse unseres Sonnensystems aus." },
+    { cat: "Wissenschaft", text: "Auf dem Saturn könnte es theoretisch Diamantenregen geben, wie Modelle zur dortigen Atmosphäre nahelegen." },
+    { cat: "Wissenschaft", text: "Der menschliche Körper leuchtet schwach durch Biolumineszenz, allerdings viel zu schwach für das bloße Auge." },
+    { cat: "Wissenschaft", text: "Antibiotika wirken nur gegen Bakterien, nicht gegen Viren, weil beide völlig unterschiedlich aufgebaut sind." },
+
+    { cat: "Mensch", text: "Der Mensch hat im Schnitt mehr Geschmacksknospen in der Kindheit als im Erwachsenenalter, was Kindheitsabneigungen gegen bestimmte Speisen erklären kann." },
+    { cat: "Mensch", text: "Die Haut ist das größte Organ des menschlichen Körpers und erneuert sich etwa alle vier Wochen komplett." },
+    { cat: "Mensch", text: "Niesen mit offenen Augen ist zwar unangenehm, aber anatomisch möglich, entgegen einem verbreiteten Mythos." },
+    { cat: "Mensch", text: "Menschen können theoretisch über eine Billion verschiedene Gerüche unterscheiden, laut neueren Schätzungen." },
+
+    { cat: "Technik", text: "Die erste digitale Fotografie entstand 1975 bei Kodak, mit einer Auflösung von nur 0,01 Megapixeln." },
+    { cat: "Technik", text: "QWERTY-Tastaturen wurden ursprünglich so angeordnet, dass sich mechanische Schreibmaschinen-Hebel seltener verhakten, nicht um besonders schnell zu tippen." },
+    { cat: "Technik", text: "Das erste Videospiel mit grafischer Oberfläche, 'Tennis for Two', lief 1958 auf einem Analogrechner mit Oszilloskop-Bildschirm." },
+    { cat: "Technik", text: "Der USB-Stecker wurde absichtlich so gestaltet, dass er 'immer falsch herum' wirkt, weil beide Seiten fast symmetrisch, aber nicht ganz identisch sind." },
+
+    { cat: "Wirtschaft", text: "Die Börse von Amsterdam aus dem 17. Jahrhundert gilt als erste moderne Aktienbörse der Welt." },
+    { cat: "Wirtschaft", text: "In manchen Gefängnissen entwickelten sich Zigaretten oder Instant-Nudeln zeitweise zu einer informellen Ersatzwährung." },
+    { cat: "Wirtschaft", text: "Das Wort 'Salär' bzw. 'Salary' geht auf das lateinische Wort für Salz zurück, das römische Soldaten teils als Lohnbestandteil erhielten." },
+    { cat: "Wirtschaft", text: "Coca-Cola wurde ursprünglich als Medizin gegen Kopfschmerzen und Erschöpfung vermarktet." },
+
+    { cat: "Geografie", text: "Der Titicacasee liegt so hoch, dass er oft als höchster schiffbarer See der Welt bezeichnet wird." },
+    { cat: "Geografie", text: "Australien ist gleichzeitig der kleinste Kontinent und das sechstgrößte Land der Erde." },
+    { cat: "Geografie", text: "Der Baikalsee enthält schätzungsweise etwa 20 Prozent des gesamten flüssigen Süßwassers der Erde." },
+    { cat: "Geografie", text: "Grönland gehört geografisch zu Nordamerika, politisch aber zu Dänemark und damit zu Europa." },
+    { cat: "Natur", text: "Manche Ameisenarten legen unterirdische 'Pilzgärten' an, in denen sie gezielt Pilze zur Ernährung züchten." },
+    { cat: "Natur", text: "Der Mantis-Krebs kann mit seinen Scheren so schnell zuschlagen, dass dabei kurzzeitig Licht durch Kavitationsblasen entsteht." },
+    { cat: "Geschichte", text: "Das antike Rom verfügte bereits über ein ausgeklügeltes Fernstraßennetz von mehr als 80.000 Kilometern Länge." },
+    { cat: "Geschichte", text: "Die Inka verwalteten ihr riesiges Reich ganz ohne Schriftsprache, unter anderem mit geknoteten Schnursystemen namens Quipu." },
+    { cat: "Wissenschaft", text: "Oktopusse und Menschen entwickelten komplexe Augen evolutionär völlig unabhängig voneinander." },
+    { cat: "Wissenschaft", text: "Die Farbe Blau kommt in der Natur bei Tieren vergleichsweise selten als echtes Pigment vor; oft entsteht sie durch Lichtbrechung in winzigen Strukturen." },
+    { cat: "Technik", text: "Die ersten Verkehrsampeln der Welt wurden noch vor der Massenverbreitung des Automobils für Pferdekutschen und Fußgänger aufgestellt." },
+    { cat: "Mensch", text: "Der menschliche Geruchssinn ist eng mit dem Gedächtnis verknüpft, weshalb Gerüche oft besonders lebhafte Erinnerungen auslösen." }
+  ];
+
+  /* ============================================================
+     3) STATE
+     ============================================================ */
+  const state = {
+    allFacts: [],       // builtinFacts + customFacts, jeweils mit stabiler id
+    order: [],
+    index: 0,
+    categories: [],
+    activeCategory: "Alle",
+    localVotes: {},      // Fallback, wenn kein Firebase konfiguriert ist
+    chosenThisSession: {},
+    currentVoteListenerId: null
+  };
+
+  function buildAllFacts(customFactsObj) {
+    const builtin = builtinFacts.map((f, i) => ({ id: String(i), cat: f.cat, text: f.text }));
+    const custom = [];
+    if (customFactsObj) {
+      Object.keys(customFactsObj).forEach(key => {
+        const f = customFactsObj[key];
+        custom.push({ id: "custom_" + key, cat: f.cat, text: f.text });
+      });
+    }
+    state.allFacts = builtin.concat(custom);
+  }
+
+  function shuffledIndices(len) {
+    const arr = Array.from({ length: len }, (_, i) => i);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function buildCategories() {
+    const set = new Set(state.allFacts.map(f => f.cat));
+    state.categories = ["Alle", ...Array.from(set).sort()];
+  }
+
+  function currentPool() {
+    if (state.activeCategory === "Alle") return state.allFacts.map((_, i) => i);
+    return state.allFacts
+      .map((f, i) => ({ f, i }))
+      .filter(x => x.f.cat === state.activeCategory)
+      .map(x => x.i);
+  }
+
+  function recomputeOrder(preferredFirstId) {
+    const pool = currentPool();
+    let shuffled = shuffledIndices(pool.length).map(i => pool[i]);
+    if (preferredFirstId) {
+      const targetPos = shuffled.findIndex(i => state.allFacts[i].id === preferredFirstId);
+      if (targetPos > 0) {
+        const [item] = shuffled.splice(targetPos, 1);
+        shuffled.unshift(item);
+      }
+    }
+    state.order = shuffled;
+    state.index = 0;
+  }
+
+  /* ============================================================
+     4) RENDERING
+     ============================================================ */
+  function renderFilters() {
+    const row = document.getElementById("filterRow");
+    row.innerHTML = "";
+    state.categories.forEach(cat => {
+      const btn = document.createElement("button");
+      btn.className = "filter-tab" + (cat === state.activeCategory ? " active" : "");
+      btn.textContent = cat;
+      btn.addEventListener("click", () => {
+        state.activeCategory = cat;
+        recomputeOrder();
+        renderFilters();
+        showCurrent();
+      });
+      row.appendChild(btn);
+    });
+  }
+
+  function renderStatusBanner() {
+    const el = document.getElementById("statusBanner");
+    const footerNote = document.getElementById("footerNote");
+    if (firebaseEnabled) {
+      el.innerHTML = "<b>Live-Modus.</b> Bewertungen und neue Fakten werden dauerhaft gespeichert und sind für alle sichtbar.";
+      footerNote.textContent = "Bewertungen sind global und dauerhaft gespeichert.";
+    } else {
+      el.innerHTML = "<b>Offline-Modus.</b> Firebase ist noch nicht eingerichtet — Bewertungen gelten nur für diese Sitzung. Konfiguration im Quelltext ergänzen, um es global & dauerhaft zu machen.";
+      footerNote.textContent = "Bewertungen gelten nur für diese Sitzung.";
+    }
+  }
+
+  function gaugeFromCounts(v) {
+    const total = (v[1] || 0) + (v[2] || 0) + (v[3] || 0);
+    const avg = total === 0 ? 0 : ((v[1] || 0) * 1 + (v[2] || 0) * 2 + (v[3] || 0) * 3) / total;
+    const pct = total === 0 ? 0.15 : Math.min(avg / 3, 1);
+    const circumference = 126;
+    document.getElementById("gaugeArc").setAttribute("stroke-dasharray", `${pct * circumference} ${circumference}`);
+    const angle = -90 + pct * 180;
+    document.getElementById("gaugeNeedle").setAttribute("transform", `rotate(${angle} 46 50)`);
+    const labels = ["—", "Meh", "Krass", "Wahnsinn"];
+    const labelIdx = total === 0 ? 0 : Math.round(avg);
+    document.getElementById("gaugeLabel").textContent = labels[labelIdx];
+    document.getElementById("voteCount").textContent = total === 0 ? "Noch keine Bewertungen" : `${total} Bewertung${total === 1 ? "" : "en"}`;
+  }
+
+  function updateChosenHighlight(factId) {
+    const chosen = state.chosenThisSession[factId] || null;
+    document.querySelectorAll(".rate-btn").forEach(b => {
+      b.classList.toggle("chosen", Number(b.dataset.value) === chosen);
+    });
+  }
+
+  function stopVoteListener() {
+    if (firebaseEnabled && state.currentVoteListenerId) {
+      db.ref("votes/" + state.currentVoteListenerId).off();
+    }
+    state.currentVoteListenerId = null;
+  }
+
+  function startVoteListener(factId) {
+    stopVoteListener();
+    if (firebaseEnabled) {
+      state.currentVoteListenerId = factId;
+      db.ref("votes/" + factId).on("value", snap => {
+        const v = snap.val() || { 1: 0, 2: 0, 3: 0 };
+        gaugeFromCounts(v);
+      });
+    } else {
+      const v = state.localVotes[factId] || { 1: 0, 2: 0, 3: 0 };
+      gaugeFromCounts(v);
+    }
+  }
+
+  function showCurrent() {
+    if (state.order.length === 0) {
+      document.getElementById("factText").textContent = "Für diese Kategorie sind gerade keine Exemplare im Archiv.";
+      document.getElementById("categoryLabel").textContent = "—";
+      document.getElementById("catalogNo").textContent = "No. ----";
+      document.getElementById("positionNote").textContent = "0 von 0";
+      return;
+    }
+    const factIdx = state.order[state.index];
+    const fact = state.allFacts[factIdx];
+    document.getElementById("factText").textContent = fact.text;
+    document.getElementById("categoryLabel").textContent = fact.cat.toUpperCase();
+    document.getElementById("catalogNo").textContent = "No. " + String(factIdx + 1).padStart(4, "0");
+    document.getElementById("positionNote").textContent = `Exemplar ${state.index + 1} von ${state.order.length}`;
+    document.getElementById("archiveCount").textContent = `Archiv — ${state.allFacts.length} Exemplare gesamt`;
+    updateChosenHighlight(fact.id);
+    startVoteListener(fact.id);
+    updateUrlForFact(fact.id);
+  }
+
+  /* ============================================================
+     5) URL-PARAMETER für geteilte Links (?fakt=<id>)
+     ============================================================ */
+  function updateUrlForFact(factId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("fakt", factId);
+    window.history.replaceState({}, "", url);
+  }
+
+  function getFactIdFromUrl() {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("fakt");
+  }
+
+  /* ============================================================
+     6) TOAST
+     ============================================================ */
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2400);
+  }
+
+  /* ============================================================
+     7) EVENTS: Bewerten, Weiter, Teilen
+     ============================================================ */
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    if (state.order.length === 0) return;
+    state.index = (state.index + 1) % state.order.length;
+    if (state.index === 0) {
+      const pool = currentPool();
+      state.order = shuffledIndices(pool.length).map(i => pool[i]);
+    }
+    showCurrent();
+  });
+
+  document.querySelectorAll(".rate-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (state.order.length === 0) return;
+      const factIdx = state.order[state.index];
+      const fact = state.allFacts[factIdx];
+      const value = Number(btn.dataset.value);
+
+      state.chosenThisSession[fact.id] = value;
+      updateChosenHighlight(fact.id);
+
+      if (firebaseEnabled) {
+        db.ref(`votes/${fact.id}/${value}`).transaction(current => (current || 0) + 1);
+      } else {
+        if (!state.localVotes[fact.id]) state.localVotes[fact.id] = { 1: 0, 2: 0, 3: 0 };
+        state.localVotes[fact.id][value] += 1;
+        gaugeFromCounts(state.localVotes[fact.id]);
+      }
+    });
+  });
+
+  document.getElementById("shareBtn").addEventListener("click", async () => {
+    if (state.order.length === 0) return;
+    const factIdx = state.order[state.index];
+    const fact = state.allFacts[factIdx];
+    const url = new URL(window.location.href);
+    url.searchParams.set("fakt", fact.id);
+    const shareText = `Wusstest du das? ${fact.text}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Kuriositäten-Kabinett", text: shareText, url: url.toString() });
+      } catch (e) { /* Nutzer hat abgebrochen, kein Fehler nötig */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${url.toString()}`);
+      showToast("Link kopiert!");
+    } catch (e) {
+      showToast("Kopieren nicht möglich — Link: " + url.toString());
+    }
+  });
+
+  /* ============================================================
+     8) ADMIN-MODAL
+     ============================================================ */
+  const adminOverlay = document.getElementById("adminOverlay");
+  const adminGate = document.getElementById("adminGate");
+  const adminForm = document.getElementById("adminForm");
+
+  function openAdmin() {
+    adminOverlay.classList.add("open");
+    adminGate.style.display = "block";
+    adminForm.style.display = "none";
+    document.getElementById("adminPass").value = "";
+    document.getElementById("adminGateError").style.display = "none";
+  }
+
+  function closeAdmin() {
+    adminOverlay.classList.remove("open");
+  }
+
+  document.getElementById("adminOpenBtn").addEventListener("click", openAdmin);
+  document.getElementById("adminCloseBtn").addEventListener("click", closeAdmin);
+  document.getElementById("adminCancelBtn").addEventListener("click", closeAdmin);
+  document.getElementById("adminCancelBtn2").addEventListener("click", closeAdmin);
+  adminOverlay.addEventListener("click", e => { if (e.target === adminOverlay) closeAdmin(); });
+
+  document.getElementById("adminUnlockBtn").addEventListener("click", () => {
+    const val = document.getElementById("adminPass").value;
+    if (val === ADMIN_PASSWORD) {
+      adminGate.style.display = "none";
+      adminForm.style.display = "block";
+      populateCategorySelect();
+      document.getElementById("factError").style.display = "none";
+      document.getElementById("factSuccess").style.display = "none";
+    } else {
+      document.getElementById("adminGateError").style.display = "block";
+    }
+  });
+
+  function populateCategorySelect() {
+    const select = document.getElementById("factCategory");
+    select.innerHTML = "";
+    state.categories.filter(c => c !== "Alle").forEach(cat => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+  }
+
+  document.getElementById("factSubmitBtn").addEventListener("click", () => {
+    const newCat = document.getElementById("factNewCategory").value.trim();
+    const selectedCat = document.getElementById("factCategory").value;
+    const cat = newCat || selectedCat;
+    const text = document.getElementById("factText2").value.trim();
+    const errorEl = document.getElementById("factError");
+    const successEl = document.getElementById("factSuccess");
+
+    successEl.style.display = "none";
+    if (!text || text.length < 8) {
+      errorEl.textContent = "Bitte einen etwas längeren Fakt eingeben.";
+      errorEl.style.display = "block";
+      return;
+    }
+    if (!cat) {
+      errorEl.textContent = "Bitte eine Kategorie wählen oder neu anlegen.";
+      errorEl.style.display = "block";
+      return;
+    }
+    if (!firebaseEnabled) {
+      errorEl.textContent = "Firebase ist noch nicht eingerichtet — neue Fakten können erst gespeichert werden, sobald die Konfiguration im Quelltext ergänzt ist.";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    errorEl.style.display = "none";
+    db.ref("customFacts").push({ cat, text, addedAt: Date.now() })
+      .then(() => {
+        successEl.style.display = "block";
+        document.getElementById("factText2").value = "";
+        document.getElementById("factNewCategory").value = "";
+      })
+      .catch(err => {
+        errorEl.textContent = "Fehler beim Speichern: " + err.message;
+        errorEl.style.display = "block";
+      });
+  });
+
+  /* ============================================================
+     9) INITIALISIERUNG
+     ============================================================ */
+  function init() {
+    tryInitFirebase();
+    renderStatusBanner();
+
+    if (firebaseEnabled) {
+      db.ref("customFacts").on("value", snapshot => {
+        const wasEmpty = state.allFacts.length === 0;
+        buildAllFacts(snapshot.val());
+        buildCategories();
+        renderFilters();
+        if (wasEmpty) {
+          const urlFactId = getFactIdFromUrl();
+          recomputeOrder(urlFactId);
+          showCurrent();
+        }
+      });
+    } else {
+      buildAllFacts(null);
+      buildCategories();
+      renderFilters();
+      const urlFactId = getFactIdFromUrl();
+      recomputeOrder(urlFactId);
+      showCurrent();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
