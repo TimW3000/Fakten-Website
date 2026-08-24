@@ -1824,7 +1824,7 @@
   function gaugeFromCounts(v) {
     const total = (v[1] || 0) + (v[2] || 0) + (v[3] || 0);
     const avg = total === 0 ? 0 : ((v[1] || 0) * 1 + (v[2] || 0) * 2 + (v[3] || 0) * 3) / total;
-    const pct = total === 0 ? 0.15 : Math.min(avg / 3, 1);
+    const pct = total === 0 ? 0.15 : Math.min(Math.max((avg - 1) / 2, 0), 1);
     const circumference = 126;
     document.getElementById("gaugeArc").setAttribute("stroke-dasharray", `${pct * circumference} ${circumference}`);
     const angle = -90 + pct * 180;
