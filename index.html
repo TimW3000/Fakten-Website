@@ -256,7 +256,9 @@
   .gauge-meta b { color: var(--ink); font-size: 13px; }
 
   .gauge-needle {
-    transform-origin: 46px 50px;
+    /* Kein transform-origin hier: der Drehpunkt steckt schon in rotate(winkel 46 50),
+       das per JS gesetzt wird. Mit beidem gleichzeitig verdoppelt sich der Versatz
+       und der Zeiger dreht sich bei jedem Winkel außer 0° aus dem sichtbaren Bereich. */
     transition: transform 0.6s cubic-bezier(.25,1.4,.4,1);
   }
 
@@ -1824,13 +1826,20 @@
   function gaugeFromCounts(v) {
     const total = (v[1] || 0) + (v[2] || 0) + (v[3] || 0);
     const avg = total === 0 ? 0 : ((v[1] || 0) * 1 + (v[2] || 0) * 2 + (v[3] || 0) * 3) / total;
-    const pct = total === 0 ? 0.15 : Math.min(Math.max((avg - 1) / 2, 0), 1);
-    const circumference = 126;
-    document.getElementById("gaugeArc").setAttribute("stroke-dasharray", `${pct * circumference} ${circumference}`);
-    const angle = -90 + pct * 180;
-    document.getElementById("gaugeNeedle").setAttribute("transform", `rotate(${angle} 46 50)`);
     const labels = ["—", "Meh", "Krass", "Wahnsinn"];
     const labelIdx = total === 0 ? 0 : Math.round(avg);
+    // Zeiger springt exakt auf die Position des angezeigten Worts (0 / 50 / 100 %),
+    // statt stufenlos auf dem Durchschnitt zu stehen — sonst passt der Ausschlag
+    // bei gemischten Bewertungen nicht zum Label darunter.
+    const pct = total === 0 ? 0.15 : (labelIdx - 1) / 2;
+    const circumference = 126;
+    const gaugeArcEl = document.getElementById("gaugeArc");
+    gaugeArcEl.setAttribute("stroke-dasharray", `${pct * circumference} ${circumference}`);
+    // Bei exakt 0% würde ein Null-Längen-Strich mit runder Kappe trotzdem als
+    // kleiner Punkt am Bogenanfang gerendert werden — bei genau 0 daher ausblenden.
+    gaugeArcEl.style.opacity = pct > 0 ? "1" : "0";
+    const angle = -90 + pct * 180;
+    document.getElementById("gaugeNeedle").setAttribute("transform", `rotate(${angle} 46 50)`);
     document.getElementById("gaugeLabel").textContent = labels[labelIdx];
     document.getElementById("voteCount").textContent = total === 0 ? "Noch keine Bewertungen" : `${total} Bewertung${total === 1 ? "" : "en"}`;
   }
