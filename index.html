@@ -295,6 +295,9 @@
 
   /* ---------- Share row ---------- */
   .share-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-bottom: 22px;
   }
 
@@ -313,6 +316,10 @@
   }
 
   .share-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+  .reset-known-btn {
+    margin-top: 14px;
+  }
 
   /* ---------- Next row ---------- */
   .next-row {
@@ -554,7 +561,10 @@
 
     <div class="share-row">
       <button class="share-btn" id="shareBtn">↗ Dieses Kuriosum teilen</button>
+      <button class="share-btn" id="knownBtn">🙄 Kenne ich schon</button>
     </div>
+
+    <button class="share-btn reset-known-btn" id="resetKnownBtn" style="display:none;">↺ Markierungen zurücksetzen</button>
 
     <div class="next-row">
       <span class="position-note" id="positionNote">Exemplar 1 von 100</span>
@@ -778,6 +788,23 @@
   /* ============================================================
      3) STATE
      ============================================================ */
+  const KNOWN_FACTS_KEY = "kuriositaeten_known_v1";
+
+  function loadKnownFacts() {
+    try {
+      const raw = localStorage.getItem(KNOWN_FACTS_KEY);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  function saveKnownFacts() {
+    try {
+      localStorage.setItem(KNOWN_FACTS_KEY, JSON.stringify(Array.from(state.knownFactIds)));
+    } catch (e) { /* localStorage nicht verfügbar, dann eben nur für diese Sitzung */ }
+  }
+
   const state = {
     allFacts: [],       // builtinFacts + customFacts, jeweils mit stabiler id
     order: [],
@@ -786,7 +813,8 @@
     activeCategory: "Alle",
     localVotes: {},      // Fallback, wenn kein Firebase konfiguriert ist
     chosenThisSession: {},
-    currentVoteListenerId: null
+    currentVoteListenerId: null,
+    knownFactIds: loadKnownFacts()   // Fakten, die als "kenne ich schon" markiert wurden (pro Browser)
   };
 
   function buildAllFacts(customFactsObj) {
@@ -816,11 +844,17 @@
   }
 
   function currentPool() {
-    if (state.activeCategory === "Alle") return state.allFacts.map((_, i) => i);
-    return state.allFacts
-      .map((f, i) => ({ f, i }))
-      .filter(x => x.f.cat === state.activeCategory)
-      .map(x => x.i);
+    const base = state.activeCategory === "Alle"
+      ? state.allFacts.map((_, i) => i)
+      : state.allFacts
+          .map((f, i) => ({ f, i }))
+          .filter(x => x.f.cat === state.activeCategory)
+          .map(x => x.i);
+    return base.filter(i => !state.knownFactIds.has(state.allFacts[i].id));
+  }
+
+  function categoryHasAnyFacts(cat) {
+    return cat === "Alle" ? state.allFacts.length > 0 : state.allFacts.some(f => f.cat === cat);
   }
 
   function recomputeOrder(preferredFirstId) {
@@ -912,20 +946,29 @@
   }
 
   function showCurrent() {
+    const resetBtn = document.getElementById("resetKnownBtn");
     if (state.order.length === 0) {
-      document.getElementById("factText").textContent = "Für diese Kategorie sind gerade keine Exemplare im Archiv.";
+      const allKnown = categoryHasAnyFacts(state.activeCategory) && state.knownFactIds.size > 0;
+      document.getElementById("factText").textContent = allKnown
+        ? "Du kennst schon alle Kuriositäten dieser Kategorie."
+        : "Für diese Kategorie sind gerade keine Exemplare im Archiv.";
       document.getElementById("categoryLabel").textContent = "—";
       document.getElementById("catalogNo").textContent = "No. ----";
       document.getElementById("positionNote").textContent = "0 von 0";
+      document.getElementById("archiveCount").textContent = `Archiv — ${state.allFacts.length} Exemplare gesamt`;
+      if (resetBtn) resetBtn.style.display = allKnown ? "inline-block" : "none";
       return;
     }
+    if (resetBtn) resetBtn.style.display = "none";
     const factIdx = state.order[state.index];
     const fact = state.allFacts[factIdx];
     document.getElementById("factText").textContent = fact.text;
     document.getElementById("categoryLabel").textContent = fact.cat.toUpperCase();
     document.getElementById("catalogNo").textContent = "No. " + String(factIdx + 1).padStart(4, "0");
     document.getElementById("positionNote").textContent = `Exemplar ${state.index + 1} von ${state.order.length}`;
-    document.getElementById("archiveCount").textContent = `Archiv — ${state.allFacts.length} Exemplare gesamt`;
+    document.getElementById("archiveCount").textContent = state.knownFactIds.size > 0
+      ? `Archiv — ${state.allFacts.length} Exemplare gesamt · ${state.knownFactIds.size} bekannt`
+      : `Archiv — ${state.allFacts.length} Exemplare gesamt`;
     updateChosenHighlight(fact.id);
     startVoteListener(fact.id);
     updateUrlForFact(fact.id);
@@ -988,6 +1031,25 @@
         gaugeFromCounts(state.localVotes[fact.id]);
       }
     });
+  });
+
+  document.getElementById("knownBtn").addEventListener("click", () => {
+    if (state.order.length === 0) return;
+    const factIdx = state.order[state.index];
+    const fact = state.allFacts[factIdx];
+    state.knownFactIds.add(fact.id);
+    saveKnownFacts();
+    showToast("Als bekannt markiert — wird nicht mehr angezeigt.");
+    recomputeOrder();
+    showCurrent();
+  });
+
+  document.getElementById("resetKnownBtn").addEventListener("click", () => {
+    state.knownFactIds = new Set();
+    saveKnownFacts();
+    showToast("Markierungen zurückgesetzt.");
+    recomputeOrder();
+    showCurrent();
   });
 
   document.getElementById("shareBtn").addEventListener("click", async () => {
