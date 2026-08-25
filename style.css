@@ -1,0 +1,350 @@
+:root {
+  --ink: #14231C;
+  --parchment: #EDE4D3;
+  --parchment-dim: #E1D5BC;
+  --brass: #B8935B;
+  --brass-bright: #D3AC72;
+  --sage: #7C8B6F;
+  --stamp-red: #A13D34;
+  --deep-green: #1B2B22;
+  --card-shadow: rgba(20, 35, 28, 0.35);
+  --radius-card: 6px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--deep-green);
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(184,147,91,0.06), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(184,147,91,0.05), transparent 50%);
+  color: var(--parchment);
+  font-family: 'Source Serif 4', Georgia, serif;
+}
+
+.stage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 16px 40px;
+}
+
+/* ---------- Header ---------- */
+.game-header {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(184,147,91,0.35);
+  padding-bottom: 16px;
+}
+
+.brand {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(22px, 4vw, 30px);
+  letter-spacing: 0.01em;
+  margin: 0;
+  color: var(--parchment);
+}
+
+.brand span {
+  color: var(--brass-bright);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.hud {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hud-item {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--parchment-dim);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.hud-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
+
+.hud-item b {
+  color: var(--brass-bright);
+  font-size: 15px;
+}
+
+.lives {
+  color: var(--stamp-red);
+  letter-spacing: 2px;
+}
+
+/* ---------- Layout ---------- */
+.game-area {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.game-wrap {
+  position: relative;
+  width: 480px;
+  max-width: 100%;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -20px var(--card-shadow), 0 2px 0 rgba(184,147,91,0.6) inset;
+  background: #0d1712;
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  background: linear-gradient(180deg, #0d1712 0%, #16241c 100%);
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20,35,28,0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 24px;
+  gap: 4px;
+}
+
+.overlay.hidden { display: none; }
+
+.overlay h2 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(22px, 5vw, 28px);
+  color: var(--parchment);
+  margin: 0 0 10px;
+}
+
+.overlay p {
+  font-family: 'Source Serif 4', serif;
+  font-size: 14.5px;
+  color: var(--parchment-dim);
+  line-height: 1.6;
+  margin: 0 0 6px;
+  max-width: 340px;
+}
+
+.controls-hint {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em;
+  color: var(--sage) !important;
+  margin-bottom: 20px !important;
+}
+
+.final-score-line b {
+  color: var(--brass-bright);
+  font-size: 22px;
+}
+
+.personal-best-line {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  color: var(--sage) !important;
+}
+
+/* ---------- Buttons ---------- */
+.stamp-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--parchment);
+  background: var(--stamp-red);
+  border: none;
+  border-radius: 4px;
+  padding: 13px 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #7C2C26;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+  margin-top: 10px;
+}
+
+.stamp-btn:hover { filter: brightness(1.05); }
+.stamp-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7C2C26; }
+
+.stamp-btn.small {
+  padding: 10px 16px;
+  font-size: 11.5px;
+  box-shadow: 0 4px 0 #7C2C26;
+  margin-top: 0;
+}
+
+.text-btn {
+  margin-top: 16px;
+  background: transparent;
+  border: none;
+  color: var(--sage);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.text-btn:hover { color: var(--brass-bright); }
+
+/* ---------- Highscore form ---------- */
+.highscore-form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.highscore-form label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
+
+.highscore-row {
+  display: flex;
+  gap: 8px;
+}
+
+#initials {
+  width: 90px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 10px 8px;
+  border: 1.5px solid rgba(184,147,91,0.5);
+  border-radius: 4px;
+  background: rgba(237,228,211,0.08);
+  color: var(--parchment);
+}
+
+#initials:focus {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 1px;
+}
+
+/* ---------- Leaderboard ---------- */
+.leaderboard {
+  width: 230px;
+  max-width: 100%;
+  background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dim) 100%);
+  color: var(--ink);
+  border-radius: var(--radius-card);
+  box-shadow: 0 20px 40px -18px var(--card-shadow), 0 2px 0 rgba(184,147,91,0.6) inset;
+  padding: 20px 18px;
+}
+
+.leaderboard h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+.leaderboard-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.leaderboard-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background: rgba(20,35,28,0.05);
+}
+
+.leaderboard-list li .rank {
+  color: var(--sage);
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.leaderboard-list li .name {
+  flex: 1;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.leaderboard-list li .points {
+  color: var(--stamp-red);
+  font-weight: 600;
+}
+
+.leaderboard-empty {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--sage);
+  font-style: italic;
+}
+
+.status-banner {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--sage);
+  background: rgba(184,147,91,0.08);
+  border: 1px dashed rgba(184,147,91,0.4);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---------- Footer ---------- */
+.game-footer {
+  max-width: 760px;
+  text-align: center;
+  color: var(--sage);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  margin-top: 26px;
+}
+
+@media (max-width: 720px) {
+  .game-area { flex-direction: column; align-items: center; }
+  .leaderboard { width: 480px; }
+}
