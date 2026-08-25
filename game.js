@@ -324,15 +324,21 @@
     }
     const h = playerHeight();
 
-    player.vy += GRAVITY * dt;
-    player.y += player.vy * dt;
-    if (player.y >= GROUND_Y - h) {
+    if (player.grounded) {
+      // Feet bleiben am Boden verankert, egal ob die Höhe gerade durch
+      // Ducken wechselt — keine Schwerkraft-Integration nötig, solange
+      // wir schon stehen (verhindert das "Kopf bleibt oben"-Flackern).
       player.y = GROUND_Y - h;
       player.vy = 0;
-      player.grounded = true;
-      player.jumpsUsed = 0;
     } else {
-      player.grounded = false;
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+      if (player.y >= GROUND_Y - h) {
+        player.y = GROUND_Y - h;
+        player.vy = 0;
+        player.grounded = true;
+        player.jumpsUsed = 0;
+      }
     }
 
     if (player.shielded) {
@@ -577,24 +583,6 @@
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1.5;
       ctx.strokeRect(o.x, oy, o.w, o.h);
-
-      // Richtungs-Icon: hoch = springen, runter = ducken
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.beginPath();
-      const cx = o.x + o.w / 2;
-      if (isLow) {
-        const ay = oy - 8;
-        ctx.moveTo(cx, ay - 7);
-        ctx.lineTo(cx - 7, ay + 5);
-        ctx.lineTo(cx + 7, ay + 5);
-      } else {
-        const ay = oy + o.h + 8;
-        ctx.moveTo(cx, ay + 7);
-        ctx.lineTo(cx - 7, ay - 5);
-        ctx.lineTo(cx + 7, ay - 5);
-      }
-      ctx.closePath();
-      ctx.fill();
       ctx.restore();
     });
   }
