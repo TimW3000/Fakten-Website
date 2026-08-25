@@ -156,7 +156,7 @@
   const PLAYER_W_STAND = 30;
   const PLAYER_H_STAND = 44;
   const PLAYER_H_DUCK = 24;
-  const DUCK_CLEARANCE = 18;
+  const DUCK_CLEARANCE = 30;
   const GRAVITY = 2400;
   const JUMP_VELOCITY = -840;
   const DOUBLE_JUMP_VELOCITY = -700;
@@ -310,7 +310,7 @@
     elapsed += dt;
     speed = Math.min(MAX_SPEED, BASE_SPEED + elapsed * 14);
     distance += speed * dt;
-    score = distance / 8;
+    score += (speed * dt) / 8;
     updateHud();
 
     // player physics — ducking intent resolved BEFORE gravity/ground snap,
@@ -565,16 +565,36 @@
 
   function drawObstacles() {
     obstacles.forEach(function (o) {
-      const oy = o.kind === "low" ? GROUND_Y - o.h : o.y;
+      const isLow = o.kind === "low";
+      const oy = isLow ? GROUND_Y - o.h : o.y;
+      const color = isLow ? "#ff7a1a" : "#ff2bd6";
       ctx.save();
-      ctx.shadowColor = "#ff2bd6";
+      ctx.shadowColor = color;
       ctx.shadowBlur = 16;
-      ctx.fillStyle = "#ff2bd6";
+      ctx.fillStyle = color;
       ctx.fillRect(o.x, oy, o.w, o.h);
       ctx.shadowBlur = 0;
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1.5;
       ctx.strokeRect(o.x, oy, o.w, o.h);
+
+      // Richtungs-Icon: hoch = springen, runter = ducken
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      const cx = o.x + o.w / 2;
+      if (isLow) {
+        const ay = oy - 8;
+        ctx.moveTo(cx, ay - 7);
+        ctx.lineTo(cx - 7, ay + 5);
+        ctx.lineTo(cx + 7, ay + 5);
+      } else {
+        const ay = oy + o.h + 8;
+        ctx.moveTo(cx, ay + 7);
+        ctx.lineTo(cx - 7, ay - 5);
+        ctx.lineTo(cx + 7, ay - 5);
+      }
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     });
   }
