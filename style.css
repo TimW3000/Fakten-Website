@@ -1,14 +1,18 @@
 :root {
-  --ink: #14231C;
-  --parchment: #EDE4D3;
-  --parchment-dim: #E1D5BC;
-  --brass: #B8935B;
-  --brass-bright: #D3AC72;
-  --sage: #7C8B6F;
-  --stamp-red: #A13D34;
-  --deep-green: #1B2B22;
-  --card-shadow: rgba(20, 35, 28, 0.35);
-  --radius-card: 6px;
+  --bg-deep: #05030f;
+  --bg-mid: #0c0620;
+  --panel: #0f0a24;
+  --panel-line: rgba(0, 246, 255, 0.18);
+  --cyan: #00f6ff;
+  --cyan-dim: #0a97a3;
+  --magenta: #ff2bd6;
+  --magenta-dim: #a01c8c;
+  --yellow: #fff500;
+  --purple: #7c3aed;
+  --text: #e8e6ff;
+  --text-dim: #8b86b8;
+  --glow-shadow: 0 30px 70px -25px rgba(0, 246, 255, 0.25);
+  --radius-card: 8px;
 }
 
 * { box-sizing: border-box; }
@@ -17,12 +21,12 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background: var(--deep-green);
+  background: var(--bg-deep);
   background-image:
-    radial-gradient(circle at 20% 20%, rgba(184,147,91,0.06), transparent 45%),
-    radial-gradient(circle at 80% 80%, rgba(184,147,91,0.05), transparent 50%);
-  color: var(--parchment);
-  font-family: 'Source Serif 4', Georgia, serif;
+    radial-gradient(circle at 20% 10%, rgba(255, 43, 214, 0.10), transparent 45%),
+    radial-gradient(circle at 80% 85%, rgba(0, 246, 255, 0.08), transparent 50%);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .stage {
@@ -36,31 +40,30 @@ html, body {
 /* ---------- Header ---------- */
 .game-header {
   width: 100%;
-  max-width: 760px;
+  max-width: 940px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px;
   margin-bottom: 22px;
-  border-bottom: 1px solid rgba(184,147,91,0.35);
+  border-bottom: 1px solid var(--panel-line);
   padding-bottom: 16px;
 }
 
 .brand {
-  font-family: 'Fraunces', serif;
-  font-optical-sizing: auto;
-  font-weight: 600;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
   font-size: clamp(22px, 4vw, 30px);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   margin: 0;
-  color: var(--parchment);
+  color: var(--text);
+  text-shadow: 0 0 14px rgba(0, 246, 255, 0.45);
 }
 
 .brand span {
-  color: var(--brass-bright);
-  font-style: italic;
-  font-weight: 500;
+  color: var(--magenta);
+  text-shadow: 0 0 14px rgba(255, 43, 214, 0.55);
 }
 
 .hud {
@@ -72,7 +75,7 @@ html, body {
 .hud-item {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  color: var(--parchment-dim);
+  color: var(--text-dim);
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -82,23 +85,19 @@ html, body {
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--sage);
+  color: var(--text-dim);
 }
 
 .hud-item b {
-  color: var(--brass-bright);
+  color: var(--cyan);
   font-size: 15px;
-}
-
-.lives {
-  color: var(--stamp-red);
-  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(0, 246, 255, 0.6);
 }
 
 /* ---------- Layout ---------- */
 .game-area {
   width: 100%;
-  max-width: 760px;
+  max-width: 940px;
   display: flex;
   gap: 22px;
   align-items: flex-start;
@@ -108,12 +107,12 @@ html, body {
 
 .game-wrap {
   position: relative;
-  width: 480px;
+  width: 700px;
   max-width: 100%;
   border-radius: var(--radius-card);
   overflow: hidden;
-  box-shadow: 0 30px 60px -20px var(--card-shadow), 0 2px 0 rgba(184,147,91,0.6) inset;
-  background: #0d1712;
+  box-shadow: var(--glow-shadow), 0 0 0 1px var(--panel-line);
+  background: var(--bg-deep);
 }
 
 #gameCanvas {
@@ -121,14 +120,14 @@ html, body {
   width: 100%;
   height: auto;
   touch-action: none;
-  background: linear-gradient(180deg, #0d1712 0%, #16241c 100%);
+  background: linear-gradient(180deg, #0c0620 0%, #05030f 65%);
 }
 
 /* ---------- Overlays ---------- */
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(20,35,28,0.88);
+  background: rgba(5, 3, 15, 0.9);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -141,65 +140,66 @@ html, body {
 .overlay.hidden { display: none; }
 
 .overlay h2 {
-  font-family: 'Fraunces', serif;
-  font-size: clamp(22px, 5vw, 28px);
-  color: var(--parchment);
-  margin: 0 0 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-size: clamp(22px, 5vw, 30px);
+  color: var(--cyan);
+  text-shadow: 0 0 16px rgba(0, 246, 255, 0.55);
+  margin: 0 0 12px;
 }
 
 .overlay p {
-  font-family: 'Source Serif 4', serif;
-  font-size: 14.5px;
-  color: var(--parchment-dim);
-  line-height: 1.6;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
   margin: 0 0 6px;
-  max-width: 340px;
+  max-width: 420px;
 }
 
 .controls-hint {
-  font-family: 'JetBrains Mono', monospace !important;
   font-size: 11px !important;
   letter-spacing: 0.04em;
-  color: var(--sage) !important;
+  color: var(--purple) !important;
   margin-bottom: 20px !important;
 }
 
 .final-score-line b {
-  color: var(--brass-bright);
-  font-size: 22px;
+  color: var(--yellow);
+  font-size: 24px;
+  text-shadow: 0 0 12px rgba(255, 245, 0, 0.5);
 }
 
 .personal-best-line {
-  font-family: 'JetBrains Mono', monospace !important;
   font-size: 11.5px !important;
-  color: var(--sage) !important;
+  color: var(--magenta) !important;
 }
 
 /* ---------- Buttons ---------- */
 .stamp-btn {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Orbitron', sans-serif;
   font-size: 12.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--parchment);
-  background: var(--stamp-red);
+  color: var(--bg-deep);
+  background: var(--cyan);
   border: none;
   border-radius: 4px;
-  padding: 13px 22px;
+  padding: 13px 26px;
   cursor: pointer;
-  box-shadow: 0 6px 0 #7C2C26;
-  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+  box-shadow: 0 0 24px rgba(0, 246, 255, 0.55);
+  transition: transform 0.08s ease, box-shadow 0.15s ease, filter 0.15s ease;
   margin-top: 10px;
 }
 
-.stamp-btn:hover { filter: brightness(1.05); }
-.stamp-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7C2C26; }
+.stamp-btn:hover { filter: brightness(1.1); box-shadow: 0 0 32px rgba(0, 246, 255, 0.8); }
+.stamp-btn:active { transform: scale(0.97); }
 
 .stamp-btn.small {
   padding: 10px 16px;
-  font-size: 11.5px;
-  box-shadow: 0 4px 0 #7C2C26;
+  font-size: 11px;
   margin-top: 0;
 }
 
@@ -207,7 +207,7 @@ html, body {
   margin-top: 16px;
   background: transparent;
   border: none;
-  color: var(--sage);
+  color: var(--text-dim);
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
   letter-spacing: 0.05em;
@@ -215,7 +215,7 @@ html, body {
   cursor: pointer;
 }
 
-.text-btn:hover { color: var(--brass-bright); }
+.text-btn:hover { color: var(--cyan); }
 
 /* ---------- Highscore form ---------- */
 .highscore-form {
@@ -227,11 +227,10 @@ html, body {
 }
 
 .highscore-form label {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--sage);
+  color: var(--text-dim);
 }
 
 .highscore-row {
@@ -247,33 +246,35 @@ html, body {
   text-transform: uppercase;
   text-align: center;
   padding: 10px 8px;
-  border: 1.5px solid rgba(184,147,91,0.5);
+  border: 1.5px solid var(--panel-line);
   border-radius: 4px;
-  background: rgba(237,228,211,0.08);
-  color: var(--parchment);
+  background: rgba(0, 246, 255, 0.06);
+  color: var(--text);
 }
 
 #initials:focus {
-  outline: 2px solid var(--brass-bright);
+  outline: 2px solid var(--cyan);
   outline-offset: 1px;
 }
 
 /* ---------- Leaderboard ---------- */
 .leaderboard {
-  width: 230px;
+  width: 220px;
   max-width: 100%;
-  background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-dim) 100%);
-  color: var(--ink);
+  background: var(--panel);
+  color: var(--text);
   border-radius: var(--radius-card);
-  box-shadow: 0 20px 40px -18px var(--card-shadow), 0 2px 0 rgba(184,147,91,0.6) inset;
+  box-shadow: var(--glow-shadow), 0 0 0 1px var(--panel-line);
   padding: 20px 18px;
 }
 
 .leaderboard h3 {
-  font-family: 'Fraunces', serif;
-  font-size: 16px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.06em;
   margin: 0 0 12px;
-  color: var(--ink);
+  color: var(--magenta);
+  text-shadow: 0 0 10px rgba(255, 43, 214, 0.5);
 }
 
 .leaderboard-list {
@@ -290,15 +291,14 @@ html, body {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-family: 'JetBrains Mono', monospace;
   font-size: 12.5px;
   padding: 5px 8px;
   border-radius: 3px;
-  background: rgba(20,35,28,0.05);
+  background: rgba(0, 246, 255, 0.05);
 }
 
 .leaderboard-list li .rank {
-  color: var(--sage);
+  color: var(--text-dim);
   width: 18px;
   flex-shrink: 0;
 }
@@ -307,26 +307,25 @@ html, body {
   flex: 1;
   font-weight: 600;
   letter-spacing: 0.04em;
+  color: var(--text);
 }
 
 .leaderboard-list li .points {
-  color: var(--stamp-red);
+  color: var(--cyan);
   font-weight: 600;
 }
 
 .leaderboard-empty {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
-  color: var(--sage);
+  color: var(--text-dim);
   font-style: italic;
 }
 
 .status-banner {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
-  color: var(--sage);
-  background: rgba(184,147,91,0.08);
-  border: 1px dashed rgba(184,147,91,0.4);
+  color: var(--text-dim);
+  background: rgba(0, 246, 255, 0.05);
+  border: 1px dashed var(--panel-line);
   border-radius: 4px;
   padding: 8px 10px;
   margin: 0;
@@ -335,16 +334,15 @@ html, body {
 
 /* ---------- Footer ---------- */
 .game-footer {
-  max-width: 760px;
+  max-width: 940px;
   text-align: center;
-  color: var(--sage);
-  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim);
   font-size: 10.5px;
   letter-spacing: 0.05em;
   margin-top: 26px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .game-area { flex-direction: column; align-items: center; }
-  .leaderboard { width: 480px; }
+  .leaderboard { width: 700px; }
 }
