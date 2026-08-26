@@ -66,6 +66,18 @@ html, body {
   text-shadow: 0 0 14px rgba(255, 43, 214, 0.55);
 }
 
+.active-game-label {
+  color: var(--text-dim) !important;
+  text-shadow: none !important;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-left: 10px;
+}
+.active-game-label:not(:empty)::before { content: "— "; }
+
+.hidden { display: none !important; }
+
 .hud {
   display: flex;
   gap: 20px;
@@ -107,12 +119,13 @@ html, body {
 
 .game-wrap {
   position: relative;
-  width: 700px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 900px;
   border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: var(--glow-shadow), 0 0 0 1px var(--panel-line);
   background: var(--bg-deep);
+  transition: max-width 0.2s ease;
 }
 
 #gameCanvas {
@@ -163,6 +176,55 @@ html, body {
   letter-spacing: 0.04em;
   color: var(--purple) !important;
   margin-bottom: 20px !important;
+}
+
+/* ---------- Hub ---------- */
+.hub-overlay { padding: 24px 20px; }
+
+.hub-grid {
+  width: 100%;
+  max-width: 760px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.hub-card {
+  --accent: #00f6ff;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid var(--panel-line);
+  border-radius: 8px;
+  padding: 18px 16px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.hub-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px var(--accent);
+}
+.hub-card:active { transform: translateY(0); }
+
+.hub-card-name {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent);
+}
+
+.hub-card-tagline {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
 }
 
 .final-score-line b {

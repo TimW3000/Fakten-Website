@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Neon Rush</title>
-<meta name="description" content="Neon Rush — ein schnelles Browser-Arcade-Spiel: springen, ducken, dem Tempo trotzen und die globale Bestenliste knacken.">
+<title>Neon Arcade</title>
+<meta name="description" content="Neon Arcade — eine Sammlung schneller Browser-Arcade-Spiele: Runner, Racer, Shooter, Breakout, Snake und Pong im Neon-Look.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23090418'/%3E%3Cpath d='M18 3 7 18h7l-2 11 13-17h-8z' fill='%2300f6ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,36 +15,26 @@
 <div class="stage">
 
   <header class="game-header">
-    <h1 class="brand">NEON<span>RUSH</span></h1>
-    <div class="hud">
-      <div class="hud-item">
-        <span class="hud-label">Score</span>
-        <b id="scoreVal">0</b>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">Best</span>
-        <b id="bestVal">0</b>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">Tempo</span>
-        <b id="speedVal">x1.0</b>
-      </div>
-      <div class="hud-item">
-        <span class="hud-label">Combo</span>
-        <b id="comboVal">x1</b>
-      </div>
-    </div>
+    <h1 class="brand">NEON<span>ARCADE</span><span id="activeGameLabel" class="active-game-label"></span></h1>
+    <div class="hud hidden" id="hudRow"></div>
   </header>
 
   <div class="game-area">
-    <div class="game-wrap">
+    <div class="game-wrap" id="gameWrap">
       <canvas id="gameCanvas" width="900" height="400"></canvas>
 
-      <div id="startOverlay" class="overlay">
-        <h2>NEON RUSH</h2>
-        <p>Lauf durchs Grid, spring über die Blocker, duck unter die Barrieren.<br>Ein Treffer beendet den Run — sammle gelbe Shards für Combo-Bonus und grüne Schilde für kurze Unverwundbarkeit. In der Luft geht ein zweiter Sprung.</p>
-        <p class="controls-hint">Springen: ␣ / ↑ / Tippen (zweimal = Doppelsprung) &nbsp;&middot;&nbsp; Ducken: ↓ / S / Halten</p>
-        <button id="startBtn" class="stamp-btn">Run starten</button>
+      <div id="hubOverlay" class="overlay hub-overlay">
+        <h2>NEON ARCADE</h2>
+        <p>Wähle ein Spiel.</p>
+        <div id="hubGrid" class="hub-grid"></div>
+      </div>
+
+      <div id="startOverlay" class="overlay hidden">
+        <h2 id="startTitle">Spiel</h2>
+        <p id="startDesc"></p>
+        <p class="controls-hint" id="startControls"></p>
+        <button id="startBtn" class="stamp-btn">Starten</button>
+        <button id="backToHubBtn" class="text-btn">Zurück zur Auswahl</button>
       </div>
 
       <div id="gameOverOverlay" class="overlay hidden">
@@ -58,7 +48,8 @@
             <button id="submitScoreBtn" class="stamp-btn small">Eintragen</button>
           </div>
         </div>
-        <button id="restartBtn" class="text-btn">Nochmal laufen</button>
+        <button id="restartBtn" class="text-btn">Nochmal spielen</button>
+        <button id="gameOverBackBtn" class="text-btn">Zurück zur Auswahl</button>
       </div>
 
       <div id="pauseOverlay" class="overlay hidden">
@@ -75,12 +66,19 @@
   </div>
 
   <footer class="game-footer">
-    Neon Rush &middot; ein kleines Arcade-Spiel
+    Neon Arcade &middot; eine Sammlung kleiner Arcade-Spiele
   </footer>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-<script src="game.js"></script>
+<script src="shared.js"></script>
+<script src="game-runner.js"></script>
+<script src="game-drift.js"></script>
+<script src="game-strike.js"></script>
+<script src="game-breaker.js"></script>
+<script src="game-snake.js"></script>
+<script src="game-pong.js"></script>
+<script>Arcade.ready();</script>
 </body>
 </html>
