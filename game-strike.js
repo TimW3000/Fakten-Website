@@ -108,7 +108,7 @@
       if (b.y > H + 10) { enemyBullets.splice(i, 1); continue; }
       if (Arcade.circlesOverlap(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, SHIP_W / 2, b.x, b.y, 5)) {
         enemyBullets.splice(i, 1);
-        if (ship.shielded) { spawnParticles(b.x, b.y, "#39ff88", 10); continue; }
+        if (ship.shielded) { spawnParticles(b.x, b.y, Arcade.theme().powerupA, 10); continue; }
         crash();
         return;
       }
@@ -131,7 +131,7 @@
 
       if (Arcade.rectsOverlap(ship.x, SHIP_Y, SHIP_W, SHIP_H, e.x, e.y, e.w, e.h)) {
         if (ship.shielded) {
-          spawnParticles(e.x + e.w / 2, e.y + e.h / 2, "#39ff88");
+          spawnParticles(e.x + e.w / 2, e.y + e.h / 2, Arcade.theme().powerupA);
           enemies.splice(i, 1);
           continue;
         }
@@ -144,13 +144,13 @@
         if (Arcade.rectsOverlap(b.x - 3, b.y - 8, 6, 16, e.x, e.y, e.w, e.h)) {
           bullets.splice(j, 1);
           e.hp -= 1;
-          spawnParticles(b.x, b.y, "#00f6ff", 6);
+          spawnParticles(b.x, b.y, Arcade.theme().player, 6);
           if (e.hp <= 0) {
             const pts = e.kind === "saucer" ? 40 : 10;
             score += pts;
             Arcade.setHud("score", Math.floor(score));
-            spawnPopup(e.x + e.w / 2, e.y, "+" + pts, "#fff500");
-            spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.kind === "saucer" ? "#ff2bd6" : "#ff7a1a", 26);
+            spawnPopup(e.x + e.w / 2, e.y, "+" + pts, Arcade.theme().collectible);
+            spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.kind === "saucer" ? Arcade.theme().hazardB : Arcade.theme().hazardA, 26);
             Arcade.beep(300, 90, 0.14, "sawtooth", 0.14);
             enemies.splice(i, 1);
           }
@@ -166,12 +166,12 @@
       if (Arcade.circlesOverlap(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, SHIP_W / 2, p.x, p.y, p.r)) {
         if (p.kind === "shield") {
           ship.shielded = true; ship.shieldTime = SHIELD_DURATION;
-          spawnPopup(p.x, p.y, "SCHILD", "#39ff88");
-          spawnParticles(p.x, p.y, "#39ff88");
+          spawnPopup(p.x, p.y, "SCHILD", Arcade.theme().powerupA);
+          spawnParticles(p.x, p.y, Arcade.theme().powerupA);
         } else {
           ship.spreadTime = SPREAD_DURATION;
-          spawnPopup(p.x, p.y, "SPREAD", "#ff2bd6");
-          spawnParticles(p.x, p.y, "#ff2bd6");
+          spawnPopup(p.x, p.y, "SPREAD", Arcade.theme().powerupB);
+          spawnParticles(p.x, p.y, Arcade.theme().powerupB);
         }
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
         powerups.splice(i, 1);
@@ -194,16 +194,17 @@
   }
 
   function crash() {
-    spawnParticles(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, "#ff2bd6", 30);
+    spawnParticles(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, Arcade.theme().hazardB, 30);
     shakeT = 0.35;
     Arcade.beep(300, 40, 0.4, "sawtooth", 0.18);
     Arcade.endRun(score);
   }
 
   function drawShip(ctx, x, y, glow) {
+    const th = Arcade.theme();
     ctx.save();
-    ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = glow || 18;
-    ctx.fillStyle = "#00f6ff";
+    if (!Arcade.isRetro()) { ctx.shadowColor = th.player; ctx.shadowBlur = glow || 18; }
+    ctx.fillStyle = th.player;
     ctx.beginPath();
     ctx.moveTo(x + SHIP_W / 2, y);
     ctx.lineTo(x + SHIP_W, y + SHIP_H);
@@ -212,38 +213,46 @@
     ctx.closePath();
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = Arcade.isRetro() ? "rgba(0,0,0,0.3)" : "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.restore();
   }
 
-  let bgGradient = null;
+  let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 10 * (shakeT / 0.35), (Math.random() - 0.5) * 10 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    if (!bgGradient) {
+    if (!bgGradient || bgGradientFor !== th) {
       bgGradient = ctx.createLinearGradient(0, 0, 0, h);
-      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+      bgGradient.addColorStop(0, th.bgTop); bgGradient.addColorStop(1, th.bgBottom);
+      bgGradientFor = th;
     }
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     stars.forEach(function (s) {
-      const a = 0.3 + 0.5 * Math.abs(Math.sin(elapsed * 2 + s.tw));
-      ctx.fillStyle = "rgba(232,230,255," + a.toFixed(2) + ")";
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      if (retro) {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 2.2, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const a = 0.3 + 0.5 * Math.abs(Math.sin(elapsed * 2 + s.tw));
+        ctx.fillStyle = "rgba(232,230,255," + a.toFixed(2) + ")";
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      }
     });
 
     bullets.forEach(function (b) {
       ctx.save();
-      ctx.strokeStyle = "rgba(0,246,255,0.35)"; ctx.lineWidth = 6;
+      ctx.strokeStyle = th.player + "59"; ctx.lineWidth = 6;
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + 12); ctx.stroke();
-      ctx.strokeStyle = "#00f6ff"; ctx.lineWidth = 3;
+      ctx.strokeStyle = th.player; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + 12); ctx.stroke();
       ctx.restore();
     });
     enemyBullets.forEach(function (b) {
       ctx.save();
-      ctx.fillStyle = "#ff7a1a";
+      ctx.fillStyle = th.hazardA;
       ctx.globalAlpha = 0.35;
       ctx.beginPath(); ctx.arc(b.x, b.y, 9, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
@@ -252,11 +261,10 @@
     });
 
     powerups.forEach(function (p) {
-      const color = p.kind === "shield" ? "#39ff88" : "#ff2bd6";
-      const glowColor = p.kind === "shield" ? "rgba(57,255,136,0.3)" : "rgba(255,43,214,0.3)";
+      const color = p.kind === "shield" ? th.powerupA : th.powerupB;
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
-      ctx.strokeStyle = glowColor;
+      ctx.strokeStyle = color + "4d";
       ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
@@ -269,7 +277,7 @@
     });
 
     enemies.forEach(function (e) {
-      const color = e.kind === "saucer" ? "#ff2bd6" : "#ff7a1a";
+      const color = e.kind === "saucer" ? th.hazardB : th.hazardA;
       ctx.save();
       ctx.fillStyle = color;
       if (e.kind === "saucer") {
@@ -304,7 +312,7 @@
       if (e.maxHp > 1) {
         ctx.fillStyle = "rgba(255,255,255,0.25)";
         ctx.fillRect(e.x, e.y - 6, e.w, 3);
-        ctx.fillStyle = "#39ff88";
+        ctx.fillStyle = th.powerupA;
         ctx.fillRect(e.x, e.y - 6, e.w * (e.hp / e.maxHp), 3);
       }
     });
@@ -312,8 +320,8 @@
     if (ship.shielded) {
       const pulse = 4 + Math.sin(elapsed * 10) * 2;
       ctx.save();
-      ctx.strokeStyle = "rgba(57,255,136,0.7)"; ctx.lineWidth = 2;
-      ctx.shadowColor = "#39ff88"; ctx.shadowBlur = 12;
+      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 2;
+      if (!retro) { ctx.shadowColor = th.powerupA; ctx.shadowBlur = 12; }
       ctx.beginPath(); ctx.arc(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, SHIP_W / 2 + 10 + pulse * 0.3, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }

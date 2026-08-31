@@ -8,15 +8,18 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23090418'/%3E%3Cpath d='M18 3 7 18h7l-2 11 13-17h-8z' fill='%2300f6ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="stage">
 
   <header class="game-header">
-    <h1 class="brand">NEON<span>ARCADE</span><span id="activeGameLabel" class="active-game-label"></span></h1>
-    <div class="hud hidden" id="hudRow"></div>
+    <h1 class="brand"><span class="brand-neon">NEON<span>ARCADE</span></span><span class="brand-retro">PIXEL<span>QUEST</span></span><span id="activeGameLabel" class="active-game-label"></span></h1>
+    <div class="header-right">
+      <div class="hud hidden" id="hudRow"></div>
+      <button id="themeToggleBtn" class="theme-toggle-btn" type="button">🍄 Retro</button>
+    </div>
   </header>
 
   <div class="game-area">
@@ -24,7 +27,7 @@
       <canvas id="gameCanvas" width="900" height="400"></canvas>
 
       <div id="hubOverlay" class="overlay hub-overlay">
-        <h2>NEON ARCADE</h2>
+        <h2 id="hubTitle">NEON ARCADE</h2>
         <p>Wähle ein Spiel.</p>
         <div id="hubGrid" class="hub-grid"></div>
       </div>

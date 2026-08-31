@@ -6,6 +6,40 @@
 (function () {
   "use strict";
 
+  /* ---------- Theme ---------- */
+  const THEMES = {
+    neon: {
+      bgTop: "#0c0620", bgBottom: "#05030f",
+      ground: "#00f6ff", groundDim: "#7c3aed",
+      player: "#00f6ff", playerAccent: "#e8e6ff",
+      hazardA: "#ff7a1a", hazardB: "#ff2bd6",
+      collectible: "#fff500", powerupA: "#39ff88", powerupB: "#ff2bd6",
+      particleLight: "#e8e6ff", ai: "#ff2bd6"
+    },
+    retro: {
+      bgTop: "#5c94fc", bgBottom: "#a8d8ff",
+      ground: "#8b5a2b", groundDim: "#5c3a1a",
+      player: "#e53935", playerAccent: "#ffe0b2",
+      hazardA: "#6d4c1c", hazardB: "#43a047",
+      collectible: "#ffd700", powerupA: "#4caf50", powerupB: "#ff9800",
+      particleLight: "#ffffff", ai: "#3a3a3a"
+    }
+  };
+  let currentTheme = localStorage.getItem("arcadeTheme") === "retro" ? "retro" : "neon";
+  function theme() { return THEMES[currentTheme]; }
+  function applyThemeAttr() {
+    document.documentElement.setAttribute("data-theme", currentTheme);
+    const btn = document.getElementById("themeToggleBtn");
+    if (btn) btn.textContent = currentTheme === "retro" ? "🕹️ Neon" : "🍄 Retro";
+    const hubTitle = document.getElementById("hubTitle");
+    if (hubTitle) hubTitle.textContent = currentTheme === "retro" ? "PIXEL QUEST" : "NEON ARCADE";
+  }
+  function toggleTheme() {
+    currentTheme = currentTheme === "retro" ? "neon" : "retro";
+    localStorage.setItem("arcadeTheme", currentTheme);
+    applyThemeAttr();
+  }
+
   /* ---------- Firebase ---------- */
   const firebaseConfig = {
     apiKey: "AIzaSyDV_JiF7JuHUtrwXRuiNCLodJh_NamRwFQ",
@@ -337,6 +371,9 @@
     if (document.hidden) pauseRun();
   });
 
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  if (themeToggleBtn) themeToggleBtn.addEventListener("click", toggleTheme);
+
   window.Arcade = {
     registerGame: registerGame,
     setHud: setHud,
@@ -349,7 +386,10 @@
     endRun: endRun,
     canvas: canvas,
     ctx: ctx,
+    theme: theme,
+    isRetro: function () { return currentTheme === "retro"; },
     ready: function () {
+      applyThemeAttr();
       tryInitFirebase();
       buildHub();
       showOnly(hubOverlay);

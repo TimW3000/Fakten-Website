@@ -80,16 +80,16 @@
       let grew = false;
       if (food && nx === food.x && ny === food.y) {
         score += 10;
-        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "+10", "#fff500");
-        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "#fff500", 14);
+        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "+10", Arcade.theme().collectible);
+        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, Arcade.theme().collectible, 14);
         Arcade.beep(680, 1080, 0.08, "triangle", 0.12);
         food = spawnFood();
         grew = true;
       }
       if (bonus && nx === bonus.x && ny === bonus.y) {
         score += 50;
-        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "+50", "#ff2bd6");
-        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "#ff2bd6", 22);
+        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "+50", Arcade.theme().powerupB);
+        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, Arcade.theme().powerupB, 22);
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
         bonus = null;
         grew = true;
@@ -116,7 +116,7 @@
 
   function crash() {
     const head = snake[0];
-    spawnParticles(head.x * CELL + CELL / 2, head.y * CELL + CELL / 2, "#ff2bd6", 26);
+    spawnParticles(head.x * CELL + CELL / 2, head.y * CELL + CELL / 2, Arcade.theme().hazardB, 26);
     shakeT = 0.3;
     Arcade.beep(300, 40, 0.4, "sawtooth", 0.18);
     Arcade.endRun(score);
@@ -142,35 +142,37 @@
     ctx.restore();
   }
 
-  let bgGradient = null;
+  let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
+    const th = Arcade.theme();
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.3), (Math.random() - 0.5) * 8 * (shakeT / 0.3));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    if (!bgGradient) {
+    if (!bgGradient || bgGradientFor !== th) {
       bgGradient = ctx.createLinearGradient(0, 0, 0, h);
-      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+      bgGradient.addColorStop(0, th.bgTop); bgGradient.addColorStop(1, th.bgBottom);
+      bgGradientFor = th;
     }
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    ctx.strokeStyle = "rgba(0,246,255,0.06)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = Arcade.isRetro() ? "rgba(255,255,255,0.15)" : "rgba(0,246,255,0.06)"; ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = 0; x <= COLS; x++) { ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, h); }
     for (let y = 0; y <= ROWS; y++) { ctx.moveTo(0, y * CELL); ctx.lineTo(w, y * CELL); }
     ctx.stroke();
 
-    if (food) roundCell(ctx, food.x, food.y, 5, "#fff500", true);
+    if (food) roundCell(ctx, food.x, food.y, 5, th.collectible, !Arcade.isRetro());
     if (bonus) {
       const pulse = bonusTimer < 2 ? Math.abs(Math.sin(bonusTimer * 10)) : 1;
       ctx.globalAlpha = 0.5 + pulse * 0.5;
-      roundCell(ctx, bonus.x, bonus.y, 3, "#ff2bd6", true);
+      roundCell(ctx, bonus.x, bonus.y, 3, th.powerupB, !Arcade.isRetro());
       ctx.globalAlpha = 1;
     }
 
     snake.forEach(function (seg, i) {
       const t = i / snake.length;
-      const color = i === 0 ? "#00f6ff" : "rgba(0,246,255," + (0.95 - t * 0.55).toFixed(2) + ")";
-      roundCell(ctx, seg.x, seg.y, 2, color, i === 0);
+      const color = i === 0 ? th.player : th.player + Math.round((0.95 - t * 0.55) * 255).toString(16).padStart(2, "0");
+      roundCell(ctx, seg.x, seg.y, 2, color, i === 0 && !Arcade.isRetro());
     });
 
     particles.forEach(function (p) {

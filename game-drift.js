@@ -42,7 +42,8 @@
   function spawnCar() {
     const w = CAR_W + Math.random() * 8;
     const x = Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w);
-    const hue = Math.random() < 0.5 ? "#ff2bd6" : "#ff7a1a";
+    const th = Arcade.theme();
+    const hue = Math.random() < 0.5 ? th.hazardB : th.hazardA;
     cars.push({ x: x, y: -CAR_H, w: w, h: CAR_H + Math.random() * 10, color: hue });
   }
   function spawnBoost() {
@@ -110,7 +111,7 @@
       c.y += speed * dt;
       if (Arcade.rectsOverlap(player.x, PLAYER_Y, CAR_W, CAR_H, c.x, c.y, c.w, c.h)) {
         if (player.shielded) {
-          spawnParticles(c.x + c.w / 2, c.y + c.h / 2, "#39ff88");
+          spawnParticles(c.x + c.w / 2, c.y + c.h / 2, Arcade.theme().powerupA);
           cars.splice(i, 1);
           continue;
         }
@@ -126,8 +127,8 @@
       if (Arcade.circlesOverlap(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, CAR_W / 2, b.x, b.y, b.r)) {
         score += 25;
         boostBonusT = 1.6;
-        spawnPopup(b.x, b.y, "+25 BOOST", "#00f6ff");
-        spawnParticles(b.x, b.y, "#00f6ff");
+        spawnPopup(b.x, b.y, "+25 BOOST", Arcade.theme().collectible);
+        spawnParticles(b.x, b.y, Arcade.theme().collectible);
         Arcade.beep(680, 1080, 0.09, "triangle", 0.13);
         boosts.splice(i, 1);
         continue;
@@ -140,8 +141,8 @@
       s.y += speed * dt; s.t += dt * 3;
       if (Arcade.circlesOverlap(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, CAR_W / 2, s.x, s.y, s.r)) {
         player.shielded = true; player.shieldTime = SHIELD_DURATION;
-        spawnPopup(s.x, s.y, "SCHILD", "#39ff88");
-        spawnParticles(s.x, s.y, "#39ff88");
+        spawnPopup(s.x, s.y, "SCHILD", Arcade.theme().powerupA);
+        spawnParticles(s.x, s.y, Arcade.theme().powerupA);
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
         shields.splice(i, 1);
         continue;
@@ -163,26 +164,38 @@
   }
 
   function crash() {
-    spawnParticles(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, "#ff2bd6");
+    spawnParticles(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, Arcade.theme().hazardB);
     shakeT = 0.35;
     Arcade.beep(300, 40, 0.4, "sawtooth", 0.18);
     Arcade.endRun(score);
   }
 
   function drawRoad(ctx) {
-    ctx.fillStyle = "#0c0620";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#120a2c";
-    ctx.fillRect(ROAD_LEFT, 0, ROAD_W, H);
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
 
-    ctx.strokeStyle = "rgba(0,246,255,0.55)";
-    ctx.lineWidth = 3;
-    ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.moveTo(ROAD_LEFT, 0); ctx.lineTo(ROAD_LEFT, H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ROAD_RIGHT, 0); ctx.lineTo(ROAD_RIGHT, H); ctx.stroke();
-    ctx.shadowBlur = 0;
+    if (retro) {
+      ctx.fillStyle = th.hazardB;
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = th.ground;
+      ctx.fillRect(ROAD_LEFT, 0, ROAD_W, H);
+      ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(ROAD_LEFT, 0); ctx.lineTo(ROAD_LEFT, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ROAD_RIGHT, 0); ctx.lineTo(ROAD_RIGHT, H); ctx.stroke();
+    } else {
+      ctx.fillStyle = "#0c0620";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#120a2c";
+      ctx.fillRect(ROAD_LEFT, 0, ROAD_W, H);
+      ctx.strokeStyle = "rgba(0,246,255,0.55)";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.moveTo(ROAD_LEFT, 0); ctx.lineTo(ROAD_LEFT, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ROAD_RIGHT, 0); ctx.lineTo(ROAD_RIGHT, H); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
 
-    ctx.strokeStyle = "rgba(232,230,255,0.4)";
+    ctx.strokeStyle = retro ? "rgba(255,255,255,0.75)" : "rgba(232,230,255,0.4)";
     ctx.lineWidth = 4;
     ctx.setLineDash([26, 22]);
     laneMarks.forEach(function (y) {
@@ -190,11 +203,21 @@
     });
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "rgba(124,58,237,0.35)";
-    roadside.forEach(function (r) {
-      const x = r.side === "l" ? ROAD_LEFT - 26 : ROAD_RIGHT + 10;
-      ctx.fillRect(x, r.y, 16, r.h);
-    });
+    if (retro) {
+      roadside.forEach(function (r) {
+        const cx = (r.side === "l" ? ROAD_LEFT - 16 : ROAD_RIGHT + 16);
+        ctx.fillStyle = "#2e7031";
+        ctx.beginPath(); ctx.arc(cx, r.y + r.h / 2, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = th.hazardB;
+        ctx.beginPath(); ctx.arc(cx, r.y + r.h / 2 - 6, 13, 0, Math.PI * 2); ctx.fill();
+      });
+    } else {
+      ctx.fillStyle = "rgba(124,58,237,0.35)";
+      roadside.forEach(function (r) {
+        const x = r.side === "l" ? ROAD_LEFT - 26 : ROAD_RIGHT + 10;
+        ctx.fillRect(x, r.y, 16, r.h);
+      });
+    }
   }
 
   function carPath(ctx, x, y, w, h) {
@@ -230,6 +253,8 @@
   }
 
   function onDraw(ctx, w, h) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 10 * (shakeT / 0.35), (Math.random() - 0.5) * 10 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
@@ -238,45 +263,54 @@
     boosts.forEach(function (b) {
       const by = b.y + Math.sin(b.t) * 3;
       ctx.save();
-      ctx.translate(b.x, by); ctx.rotate(b.t);
-      ctx.fillStyle = "#00f6ff";
-      ctx.globalAlpha = 0.35;
-      ctx.beginPath(); ctx.arc(0, 0, b.r * 1.8, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(b.r, 0); ctx.lineTo(0, b.r); ctx.lineTo(-b.r, 0); ctx.closePath(); ctx.fill();
+      ctx.translate(b.x, by); ctx.rotate(retro ? 0 : b.t);
+      ctx.fillStyle = th.collectible;
+      if (!retro) {
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.arc(0, 0, b.r * 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      if (retro) {
+        ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(b.r, 0); ctx.lineTo(0, b.r); ctx.lineTo(-b.r, 0); ctx.closePath(); ctx.fill();
+      }
       ctx.restore();
     });
     shields.forEach(function (s) {
       const sy = s.y + Math.sin(s.t) * 3;
       ctx.save();
       ctx.translate(s.x, sy); ctx.rotate(s.t * 0.5);
-      ctx.strokeStyle = "rgba(57,255,136,0.3)"; ctx.lineWidth = 7;
+      ctx.strokeStyle = th.powerupA + "4d"; ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * s.r, pyy = Math.sin(ang) * s.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
-      ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
 
     cars.forEach(function (c) { drawCar(ctx, c.x, c.y, c.w, c.h, c.color); });
 
-    player.trail.forEach(function (t, i) {
-      const a = (i / player.trail.length) * 0.3;
-      ctx.fillStyle = "rgba(0,246,255," + a.toFixed(2) + ")";
-      ctx.beginPath(); ctx.arc(t.x, t.y, 6, 0, Math.PI * 2); ctx.fill();
-    });
+    if (!retro) {
+      player.trail.forEach(function (t, i) {
+        const a = (i / player.trail.length) * 0.3;
+        ctx.fillStyle = "rgba(0,246,255," + a.toFixed(2) + ")";
+        ctx.beginPath(); ctx.arc(t.x, t.y, 6, 0, Math.PI * 2); ctx.fill();
+      });
+    }
     if (player.shielded) {
       const pulse = 4 + Math.sin(elapsed * 10) * 2;
       ctx.save();
-      ctx.strokeStyle = "rgba(57,255,136,0.7)"; ctx.lineWidth = 2;
-      ctx.shadowColor = "#39ff88"; ctx.shadowBlur = 12;
+      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 2;
+      if (!retro) { ctx.shadowColor = th.powerupA; ctx.shadowBlur = 12; }
       ctx.strokeRect(player.x - 6 - pulse * 0.3, PLAYER_Y - 6 - pulse * 0.3, CAR_W + 12 + pulse * 0.6, CAR_H + 12 + pulse * 0.6);
       ctx.restore();
     }
-    drawCar(ctx, player.x, PLAYER_Y, CAR_W, CAR_H, "#00f6ff", true);
+    drawCar(ctx, player.x, PLAYER_Y, CAR_W, CAR_H, th.player, !retro);
 
     particles.forEach(function (p) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);

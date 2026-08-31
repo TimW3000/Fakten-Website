@@ -15,6 +15,8 @@
   const BRICK_MARGIN = 10, BRICK_GAP = 5, BRICK_TOP = 66, BRICK_H = 20;
   const BRICK_W = (W - BRICK_MARGIN * 2 - BRICK_GAP * (COLS - 1)) / COLS;
   const ROW_COLORS = ["#ff2bd6", "#ff7a1a", "#fff500", "#39ff88", "#00f6ff", "#7c3aed"];
+  const ROW_COLORS_RETRO = ["#e53935", "#ff9800", "#ffd700", "#43a047", "#1e88e5", "#8b5a2b"];
+  function rowColors() { return Arcade.isRetro() ? ROW_COLORS_RETRO : ROW_COLORS; }
 
   let paddle, balls, bricks, powerups, particles, popups;
   let score = 0, level = 1, lives = 3, elapsed = 0;
@@ -126,13 +128,13 @@
         const overlapY = Math.min(b.y + BALL_R - br.y, br.y + br.h - (b.y - BALL_R));
         if (overlapX < overlapY) b.vx *= -1; else b.vy *= -1;
         br.hp -= 1;
-        spawnParticles(br.x + br.w / 2, br.y + br.h / 2, ROW_COLORS[br.row % ROW_COLORS.length], 8);
+        spawnParticles(br.x + br.w / 2, br.y + br.h / 2, rowColors()[br.row % rowColors().length], 8);
         Arcade.beep(500, 260, 0.08, "triangle", 0.1);
         if (br.hp <= 0) {
           const pts = br.maxHp * 12;
           score += pts;
           Arcade.setHud("score", Math.floor(score));
-          spawnPopup(br.x + br.w / 2, br.y + br.h / 2, "+" + pts, "#fff500");
+          spawnPopup(br.x + br.w / 2, br.y + br.h / 2, "+" + pts, Arcade.theme().collectible);
           if (Math.random() < 0.12) spawnPowerup(br.x + br.w / 2, br.y + br.h / 2);
           bricks.splice(i, 1);
         }
@@ -156,7 +158,7 @@
     if (bricks.length === 0) {
       level += 1;
       Arcade.setHud("level", level);
-      spawnPopup(W / 2, H / 2, "LEVEL " + level, "#00f6ff");
+      spawnPopup(W / 2, H / 2, "LEVEL " + level, Arcade.theme().player);
       buildBricks();
       balls = [newBall(0, 0)];
       launched = false;
@@ -168,15 +170,15 @@
       p.y += 120 * dt; p.t += dt * 3;
       const pw = paddleW();
       if (Arcade.circlesOverlap(paddle.x + pw / 2, PADDLE_Y + PADDLE_H / 2, pw / 2, p.x, p.y, p.r)) {
-        if (p.kind === "wide") { wideTime = 9; spawnPopup(p.x, p.y, "BREIT", "#00f6ff"); }
+        if (p.kind === "wide") { wideTime = 9; spawnPopup(p.x, p.y, "BREIT", Arcade.theme().powerupA); }
         else {
           const src = balls[0] || newBall();
           balls.push(newBall(-src.speed * 0.6, -src.speed * 0.8));
           balls.push(newBall(src.speed * 0.6, -src.speed * 0.8));
-          spawnPopup(p.x, p.y, "MULTI-BALL", "#ff2bd6");
+          spawnPopup(p.x, p.y, "MULTI-BALL", Arcade.theme().powerupB);
         }
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
-        spawnParticles(p.x, p.y, "#39ff88");
+        spawnParticles(p.x, p.y, Arcade.theme().powerupA);
         powerups.splice(i, 1);
         continue;
       }
@@ -202,34 +204,36 @@
     Arcade.endRun(score);
   }
 
-  let bgGradient = null;
+  let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.35), (Math.random() - 0.5) * 8 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    if (!bgGradient) {
+    if (!bgGradient || bgGradientFor !== th) {
       bgGradient = ctx.createLinearGradient(0, 0, 0, h);
-      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+      bgGradient.addColorStop(0, th.bgTop); bgGradient.addColorStop(1, th.bgBottom);
+      bgGradientFor = th;
     }
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     bricks.forEach(function (br) {
-      const color = ROW_COLORS[br.row % ROW_COLORS.length];
+      const color = rowColors()[br.row % rowColors().length];
       ctx.save();
       ctx.fillStyle = color; ctx.globalAlpha = br.hp > 1 ? 1 : 0.75;
       ctx.fillRect(br.x, br.y, br.w, br.h);
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
+      ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
       ctx.strokeRect(br.x, br.y, br.w, br.h);
       ctx.restore();
     });
 
     powerups.forEach(function (p) {
-      const color = p.kind === "wide" ? "#00f6ff" : "#ff2bd6";
-      const glowColor = p.kind === "wide" ? "rgba(0,246,255,0.3)" : "rgba(255,43,214,0.3)";
+      const color = p.kind === "wide" ? th.powerupA : th.powerupB;
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
-      ctx.strokeStyle = glowColor; ctx.lineWidth = 7;
+      ctx.strokeStyle = color + "4d"; ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * p.r, pyy = Math.sin(ang) * p.r;
@@ -242,16 +246,19 @@
 
     const pw = paddleW();
     ctx.save();
-    ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 16; ctx.fillStyle = "#00f6ff";
+    if (!retro) { ctx.shadowColor = th.player; ctx.shadowBlur = 16; }
+    ctx.fillStyle = th.player;
     ctx.fillRect(paddle.x, PADDLE_Y, pw, PADDLE_H);
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(paddle.x, PADDLE_Y, pw, PADDLE_H);
+    ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(paddle.x, PADDLE_Y, pw, PADDLE_H);
     ctx.restore();
 
     balls.forEach(function (b) {
       ctx.save();
-      ctx.shadowColor = "#fff500"; ctx.shadowBlur = 14; ctx.fillStyle = "#fff500";
+      if (!retro) { ctx.shadowColor = th.collectible; ctx.shadowBlur = 14; }
+      ctx.fillStyle = th.collectible;
       ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2); ctx.fill();
+      if (retro) { ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1.2; ctx.stroke(); }
       ctx.restore();
     });
 

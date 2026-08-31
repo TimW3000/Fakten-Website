@@ -145,7 +145,7 @@
       const oy = o.kind === "low" ? GROUND_Y - o.h : o.y;
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, o.x, oy, o.w, o.h)) {
         if (player.shielded) {
-          spawnParticles(o.x + o.w / 2, oy + o.h / 2, "#39ff88");
+          spawnParticles(o.x + o.w / 2, oy + o.h / 2, Arcade.theme().powerupA);
           obstacles.splice(i, 1);
           continue;
         }
@@ -163,8 +163,8 @@
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, s.x - s.r, sy - s.r, s.r * 2, s.r * 2)) {
         const pts = 20 + (comboStreak - 1) * 10;
         score += pts;
-        spawnPopup(s.x, sy, "+" + pts, "#fff500");
-        spawnParticles(s.x, sy, "#fff500");
+        spawnPopup(s.x, sy, "+" + pts, Arcade.theme().collectible);
+        spawnParticles(s.x, sy, Arcade.theme().collectible);
         playSfx("collect", comboStreak);
         comboStreak = Math.min(comboStreak + 1, 9);
         Arcade.setHud("combo", "x" + comboStreak);
@@ -184,8 +184,8 @@
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2)) {
         player.shielded = true;
         player.shieldTime = SHIELD_DURATION;
-        spawnPopup(p.x, p.y, "SCHILD", "#39ff88");
-        spawnParticles(p.x, p.y, "#39ff88");
+        spawnPopup(p.x, p.y, "SCHILD", Arcade.theme().powerupA);
+        spawnParticles(p.x, p.y, Arcade.theme().powerupA);
         playSfx("shield");
         powerups.splice(i, 1);
         continue;
@@ -207,13 +207,26 @@
   }
 
   function crash() {
-    spawnParticles(PLAYER_X + PLAYER_W_STAND / 2, player.y + playerHeight() / 2, "#ff2bd6");
+    spawnParticles(PLAYER_X + PLAYER_W_STAND / 2, player.y + playerHeight() / 2, Arcade.theme().hazardB);
     shakeT = 0.35;
     playSfx("crash");
     Arcade.endRun(score);
   }
 
   function drawGrid(ctx) {
+    const th = Arcade.theme();
+    if (Arcade.isRetro()) {
+      ctx.fillStyle = th.ground;
+      ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+      ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 2;
+      for (let x = -((groundLines[0] || 0) % 40); x < W; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x, H); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(0, GROUND_Y + 12); ctx.lineTo(W, GROUND_Y + 12); ctx.stroke();
+      ctx.strokeStyle = th.groundDim; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
+      return;
+    }
     const intensity = 0.3 + 0.3 * Math.min(1, (speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED));
     ctx.strokeStyle = "rgba(0,246,255," + Math.min(0.9, intensity + 0.2).toFixed(2) + ")";
     ctx.lineWidth = 2;
@@ -230,18 +243,39 @@
     }
   }
   function drawStars(ctx) {
+    if (Arcade.isRetro()) return;
     stars.forEach(function (s) {
       const a = 0.3 + 0.5 * Math.abs(Math.sin(elapsed * 2 + s.tw));
       ctx.fillStyle = "rgba(232,230,255," + a.toFixed(2) + ")";
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
     });
   }
+  function drawClouds(ctx) {
+    skyline.forEach(function (s, i) {
+      if (i % 2 !== 0) return;
+      const cx = s.x + 30, cy = 60 + (i % 3) * 26;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+      ctx.arc(cx + 18, cy - 6, 14, 0, Math.PI * 2);
+      ctx.arc(cx + 34, cy, 15, 0, Math.PI * 2);
+      ctx.arc(cx + 16, cy + 8, 17, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
   const sunX = W * 0.78, sunY = GROUND_Y - 150, sunR = 90;
-  let sunSprite = null;
-  function buildSunSprite() {
+  let sunSprite = null, sunSpriteRetro = null;
+  function buildSunSprite(retro) {
     const c = document.createElement("canvas");
     c.width = sunR * 2; c.height = sunR * 2;
     const sctx = c.getContext("2d");
+    if (retro) {
+      const grad = sctx.createRadialGradient(sunR, sunR, sunR * 0.2, sunR, sunR, sunR);
+      grad.addColorStop(0, "#fff9c4"); grad.addColorStop(1, "#ffd700");
+      sctx.fillStyle = grad;
+      sctx.beginPath(); sctx.arc(sunR, sunR, sunR * 0.8, 0, Math.PI * 2); sctx.fill();
+      return c;
+    }
     const grad = sctx.createLinearGradient(0, 0, 0, sunR * 2);
     grad.addColorStop(0, "#fff500"); grad.addColorStop(0.5, "#ff2bd6"); grad.addColorStop(1, "#7c3aed");
     sctx.save();
@@ -250,77 +284,121 @@
     sctx.fillStyle = "#05030f";
     for (let y = 0; y < sunR * 2; y += 10) { if (Math.floor(y / 10) % 2 === 0) continue; sctx.fillRect(0, y, sunR * 2, 5); }
     sctx.restore();
-    sunSprite = c;
+    return c;
   }
   function drawSkyline(ctx) {
-    if (!sunSprite) buildSunSprite();
+    if (Arcade.isRetro()) {
+      if (!sunSpriteRetro) sunSpriteRetro = buildSunSprite(true);
+      ctx.drawImage(sunSpriteRetro, sunX - sunR, sunY - sunR);
+      drawClouds(ctx);
+      return;
+    }
+    if (!sunSprite) sunSprite = buildSunSprite(false);
     ctx.drawImage(sunSprite, sunX - sunR, sunY - sunR);
     ctx.fillStyle = "rgba(124,58,237,0.28)";
     skyline.forEach(function (s) { ctx.fillRect(s.x, GROUND_Y - s.h, s.w, s.h); });
   }
   function drawPlayer(ctx) {
+    const th = Arcade.theme();
     const h = playerHeight(), y = player.y;
-    player.trail.forEach(function (t, i) {
-      const a = (i / player.trail.length) * 0.25;
-      ctx.fillStyle = "rgba(0,246,255," + a.toFixed(2) + ")";
-      ctx.fillRect(t.x, t.y - t.h / 2, PLAYER_W_STAND, t.h);
-    });
+    if (!Arcade.isRetro()) {
+      player.trail.forEach(function (t, i) {
+        const a = (i / player.trail.length) * 0.25;
+        ctx.fillStyle = "rgba(0,246,255," + a.toFixed(2) + ")";
+        ctx.fillRect(t.x, t.y - t.h / 2, PLAYER_W_STAND, t.h);
+      });
+    }
     if (player.shielded) {
       const pulse = 4 + Math.sin(elapsed * 10) * 2;
       ctx.save();
-      ctx.strokeStyle = "rgba(57,255,136,0.7)"; ctx.lineWidth = 2;
-      ctx.shadowColor = "#39ff88"; ctx.shadowBlur = 12;
+      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 2;
+      if (!Arcade.isRetro()) { ctx.shadowColor = th.powerupA; ctx.shadowBlur = 12; }
       ctx.strokeRect(PLAYER_X - 6 - pulse * 0.3, y - 6 - pulse * 0.3, PLAYER_W_STAND + 12 + pulse * 0.6, h + 12 + pulse * 0.6);
       ctx.restore();
     }
     ctx.save();
-    ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 18;
-    ctx.fillStyle = "#00f6ff"; ctx.fillRect(PLAYER_X, y, PLAYER_W_STAND, h);
+    if (!Arcade.isRetro()) { ctx.shadowColor = th.player; ctx.shadowBlur = 18; }
+    ctx.fillStyle = th.player; ctx.fillRect(PLAYER_X, y, PLAYER_W_STAND, h);
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#e8e6ff"; ctx.lineWidth = 2; ctx.strokeRect(PLAYER_X, y, PLAYER_W_STAND, h);
+    if (Arcade.isRetro()) {
+      ctx.fillStyle = th.playerAccent;
+      ctx.fillRect(PLAYER_X + 4, y + 4, PLAYER_W_STAND - 8, 8);
+    }
+    ctx.strokeStyle = Arcade.isRetro() ? "rgba(0,0,0,0.3)" : "#e8e6ff";
+    ctx.lineWidth = 2; ctx.strokeRect(PLAYER_X, y, PLAYER_W_STAND, h);
     ctx.restore();
   }
   function drawObstacles(ctx) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     obstacles.forEach(function (o) {
       const isLow = o.kind === "low";
       const oy = isLow ? GROUND_Y - o.h : o.y;
-      const color = isLow ? "#ff7a1a" : "#ff2bd6";
+      const color = isLow ? th.hazardA : th.hazardB;
       ctx.save();
-      ctx.globalAlpha = 0.35;
+      if (!retro) {
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = color;
+        ctx.fillRect(o.x - 4, oy - 4, o.w + 8, o.h + 8);
+        ctx.globalAlpha = 1;
+      }
       ctx.fillStyle = color;
-      ctx.fillRect(o.x - 4, oy - 4, o.w + 8, o.h + 8);
-      ctx.globalAlpha = 1;
-      ctx.fillRect(o.x, oy, o.w, o.h);
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(o.x, oy, o.w, o.h);
+      if (retro && !isLow) {
+        const r = Math.min(10, o.h / 2, o.w / 2);
+        ctx.beginPath();
+        ctx.moveTo(o.x + r, oy);
+        ctx.arcTo(o.x + o.w, oy, o.x + o.w, oy + o.h, r);
+        ctx.arcTo(o.x + o.w, oy + o.h, o.x, oy + o.h, r);
+        ctx.arcTo(o.x, oy + o.h, o.x, oy, r);
+        ctx.arcTo(o.x, oy, o.x + o.w, oy, r);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillRect(o.x, oy, o.w, o.h);
+      }
+      ctx.strokeStyle = retro ? "rgba(0,0,0,0.35)" : "#fff";
+      ctx.lineWidth = 1.5; ctx.strokeRect(o.x, oy, o.w, o.h);
       ctx.restore();
     });
   }
   function drawShards(ctx) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     shards.forEach(function (s) {
       const sy = s.y + Math.sin(s.t) * 4;
       ctx.save();
-      ctx.translate(s.x, sy); ctx.rotate(s.t);
-      ctx.fillStyle = "#fff500";
-      ctx.globalAlpha = 0.35;
-      ctx.beginPath(); ctx.arc(0, 0, s.r * 1.8, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.moveTo(0, -s.r); ctx.lineTo(s.r, 0); ctx.lineTo(0, s.r); ctx.lineTo(-s.r, 0); ctx.closePath(); ctx.fill();
+      ctx.translate(s.x, sy);
+      if (!retro) ctx.rotate(s.t);
+      ctx.fillStyle = th.collectible;
+      if (!retro) {
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.arc(0, 0, s.r * 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      if (retro) {
+        ctx.beginPath(); ctx.arc(0, 0, s.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.moveTo(0, -s.r); ctx.lineTo(s.r, 0); ctx.lineTo(0, s.r); ctx.lineTo(-s.r, 0); ctx.closePath(); ctx.fill();
+      }
       ctx.restore();
     });
   }
   function drawPowerups(ctx) {
+    const th = Arcade.theme();
     powerups.forEach(function (p) {
       const py = p.y + Math.sin(p.t) * 5;
       ctx.save();
       ctx.translate(p.x, py); ctx.rotate(p.t * 0.5);
-      ctx.strokeStyle = "rgba(57,255,136,0.3)"; ctx.lineWidth = 7;
+      ctx.strokeStyle = th.powerupA + "4d";
+      ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * p.r, pyy = Math.sin(ang) * p.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
-      ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
   }
@@ -341,14 +419,16 @@
     ctx.restore(); ctx.globalAlpha = 1;
   }
 
-  let bgGradient = null;
+  let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 10 * (shakeT / 0.35), (Math.random() - 0.5) * 10 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    if (!bgGradient) {
+    const th = Arcade.theme();
+    if (!bgGradient || bgGradientFor !== th) {
       bgGradient = ctx.createLinearGradient(0, 0, 0, h);
-      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+      bgGradient.addColorStop(0, th.bgTop); bgGradient.addColorStop(1, th.bgBottom);
+      bgGradientFor = th;
     }
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
     drawStars(ctx); drawSkyline(ctx); drawGrid(ctx); drawShards(ctx); drawPowerups(ctx);
@@ -363,7 +443,7 @@
       playSfx("jump");
     } else if (player.jumpsUsed < 2) {
       player.vy = DOUBLE_JUMP_VELOCITY; player.jumpsUsed = 2;
-      spawnParticles(PLAYER_X + PLAYER_W_STAND / 2, player.y + PLAYER_H_STAND, "#00f6ff");
+      spawnParticles(PLAYER_X + PLAYER_W_STAND / 2, player.y + PLAYER_H_STAND, Arcade.theme().player);
       playSfx("doublejump");
     }
   }

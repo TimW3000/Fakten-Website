@@ -75,7 +75,7 @@
       ball.vx = Math.cos(ang) * ball.speed;
       ball.vy = Math.sin(ang) * ball.speed;
       ball.x = PLAYER_X + PADDLE_W + 9;
-      spawnParticles(ball.x, ball.y, "#00f6ff", 8);
+      spawnParticles(ball.x, ball.y, Arcade.theme().player, 8);
       Arcade.beep(300, 520, 0.06, "square", 0.09);
     }
     if (ball.vx > 0 && Arcade.rectsOverlap(ball.x - 8, ball.y - 8, 16, 16, AI_X, ai.y, PADDLE_W, PADDLE_H)) {
@@ -85,7 +85,7 @@
       ball.vx = -Math.cos(ang) * ball.speed;
       ball.vy = Math.sin(ang) * ball.speed;
       ball.x = AI_X - 9;
-      spawnParticles(ball.x, ball.y, "#ff2bd6", 8);
+      spawnParticles(ball.x, ball.y, Arcade.theme().ai, 8);
       Arcade.beep(300, 520, 0.06, "square", 0.09);
     }
 
@@ -96,8 +96,8 @@
     if (ball.x > W + 12) {
       score += 100;
       Arcade.setHud("score", Math.floor(score));
-      spawnPopup(W / 2, H / 2, "+100", "#fff500");
-      spawnParticles(W - 20, ball.y, "#fff500", 20);
+      spawnPopup(W / 2, H / 2, "+100", Arcade.theme().collectible);
+      spawnParticles(W - 20, ball.y, Arcade.theme().collectible, 20);
       Arcade.beep(680, 1080, 0.1, "triangle", 0.13);
       ball = serveBall(false);
     }
@@ -116,40 +116,46 @@
   }
 
   function crash() {
-    spawnParticles(4, ball.y, "#ff2bd6", 24);
+    spawnParticles(4, ball.y, Arcade.theme().hazardB, 24);
     shakeT = 0.3;
     Arcade.beep(300, 40, 0.4, "sawtooth", 0.18);
     Arcade.endRun(score);
   }
 
-  let bgGradient = null;
+  let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
+    const th = Arcade.theme();
+    const retro = Arcade.isRetro();
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.3), (Math.random() - 0.5) * 8 * (shakeT / 0.3));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    if (!bgGradient) {
+    if (!bgGradient || bgGradientFor !== th) {
       bgGradient = ctx.createLinearGradient(0, 0, 0, h);
-      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+      bgGradient.addColorStop(0, th.bgTop); bgGradient.addColorStop(1, th.bgBottom);
+      bgGradientFor = th;
     }
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
-    ctx.strokeStyle = "rgba(232,230,255,0.25)"; ctx.lineWidth = 3;
+    ctx.strokeStyle = retro ? "rgba(255,255,255,0.6)" : "rgba(232,230,255,0.25)"; ctx.lineWidth = 3;
     ctx.setLineDash([14, 12]);
     ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.save();
-    ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 16; ctx.fillStyle = "#00f6ff";
+    if (!retro) { ctx.shadowColor = th.player; ctx.shadowBlur = 16; }
+    ctx.fillStyle = th.player;
     ctx.fillRect(PLAYER_X, player.y, PADDLE_W, PADDLE_H);
     ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 16; ctx.fillStyle = "#ff2bd6";
+    if (!retro) { ctx.shadowColor = th.ai; ctx.shadowBlur = 16; }
+    ctx.fillStyle = th.ai;
     ctx.fillRect(AI_X, ai.y, PADDLE_W, PADDLE_H);
     ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = "#fff500"; ctx.shadowBlur = 14; ctx.fillStyle = "#fff500";
+    if (!retro) { ctx.shadowColor = th.collectible; ctx.shadowBlur = 14; }
+    ctx.fillStyle = th.collectible;
     ctx.beginPath(); ctx.arc(ball.x, ball.y, 8, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
