@@ -122,13 +122,16 @@
     Arcade.endRun(score);
   }
 
+  let bgGradient = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.3), (Math.random() - 0.5) * 8 * (shakeT / 0.3));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0620"); bg.addColorStop(1, "#05030f");
-    ctx.fillStyle = bg; ctx.fillRect(-20, -20, w + 40, h + 40);
+    if (!bgGradient) {
+      bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+    }
+    ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     ctx.strokeStyle = "rgba(232,230,255,0.25)"; ctx.lineWidth = 3;
     ctx.setLineDash([14, 12]);

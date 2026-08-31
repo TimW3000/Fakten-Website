@@ -216,13 +216,16 @@
     ctx.restore();
   }
 
+  let bgGradient = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 10 * (shakeT / 0.35), (Math.random() - 0.5) * 10 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0620"); bg.addColorStop(1, "#05030f");
-    ctx.fillStyle = bg; ctx.fillRect(-20, -20, w + 40, h + 40);
+    if (!bgGradient) {
+      bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+    }
+    ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     stars.forEach(function (s) {
       const a = 0.3 + 0.5 * Math.abs(Math.sin(elapsed * 2 + s.tw));
@@ -232,41 +235,62 @@
 
     bullets.forEach(function (b) {
       ctx.save();
-      ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 8;
+      ctx.strokeStyle = "rgba(0,246,255,0.35)"; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + 12); ctx.stroke();
       ctx.strokeStyle = "#00f6ff"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + 12); ctx.stroke();
       ctx.restore();
     });
     enemyBullets.forEach(function (b) {
       ctx.save();
-      ctx.shadowColor = "#ff7a1a"; ctx.shadowBlur = 10; ctx.fillStyle = "#ff7a1a";
+      ctx.fillStyle = "#ff7a1a";
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     });
 
     powerups.forEach(function (p) {
       const color = p.kind === "shield" ? "#39ff88" : "#ff2bd6";
+      const glowColor = p.kind === "shield" ? "rgba(57,255,136,0.3)" : "rgba(255,43,214,0.3)";
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
-      ctx.shadowColor = color; ctx.shadowBlur = 16; ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * p.r, pyy = Math.sin(ang) * p.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
 
     enemies.forEach(function (e) {
       const color = e.kind === "saucer" ? "#ff2bd6" : "#ff7a1a";
       ctx.save();
-      ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.fillStyle = color;
+      ctx.fillStyle = color;
       if (e.kind === "saucer") {
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2 + 4, e.h / 2 + 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
         ctx.beginPath();
         ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, e.h / 2, 0, 0, Math.PI * 2);
         ctx.fill();
       } else {
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.moveTo(e.x + e.w / 2, e.y + e.h + 4);
+        ctx.lineTo(e.x + e.w + 4, e.y - 3);
+        ctx.lineTo(e.x + e.w / 2, e.y + e.h * 0.28);
+        ctx.lineTo(e.x - 4, e.y - 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
         ctx.beginPath();
         ctx.moveTo(e.x + e.w / 2, e.y + e.h);
         ctx.lineTo(e.x + e.w, e.y);
@@ -275,7 +299,6 @@
         ctx.closePath();
         ctx.fill();
       }
-      ctx.shadowBlur = 0;
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.stroke();
       ctx.restore();
       if (e.maxHp > 1) {

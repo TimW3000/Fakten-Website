@@ -122,10 +122,7 @@
     Arcade.endRun(score);
   }
 
-  function roundCell(ctx, gx, gy, pad, color, glow) {
-    ctx.save();
-    ctx.shadowColor = color; ctx.shadowBlur = glow || 10;
-    ctx.fillStyle = color;
+  function cellPath(ctx, gx, gy, pad) {
     const r = 5;
     const x = gx * CELL + pad, y = gy * CELL + pad, s = CELL - pad * 2;
     ctx.beginPath();
@@ -135,34 +132,45 @@
     ctx.arcTo(x, y + s, x, y, r);
     ctx.arcTo(x, y, x + s, y, r);
     ctx.closePath();
+  }
+  function roundCell(ctx, gx, gy, pad, color, useBlur) {
+    ctx.save();
+    if (useBlur) { ctx.shadowColor = color; ctx.shadowBlur = 14; }
+    ctx.fillStyle = color;
+    cellPath(ctx, gx, gy, pad);
     ctx.fill();
     ctx.restore();
   }
 
+  let bgGradient = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.3), (Math.random() - 0.5) * 8 * (shakeT / 0.3));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0620"); bg.addColorStop(1, "#05030f");
-    ctx.fillStyle = bg; ctx.fillRect(-20, -20, w + 40, h + 40);
+    if (!bgGradient) {
+      bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+    }
+    ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     ctx.strokeStyle = "rgba(0,246,255,0.06)"; ctx.lineWidth = 1;
-    for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, h); ctx.stroke(); }
-    for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(w, y * CELL); ctx.stroke(); }
+    ctx.beginPath();
+    for (let x = 0; x <= COLS; x++) { ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, h); }
+    for (let y = 0; y <= ROWS; y++) { ctx.moveTo(0, y * CELL); ctx.lineTo(w, y * CELL); }
+    ctx.stroke();
 
-    if (food) roundCell(ctx, food.x, food.y, 5, "#fff500", 14);
+    if (food) roundCell(ctx, food.x, food.y, 5, "#fff500", true);
     if (bonus) {
       const pulse = bonusTimer < 2 ? Math.abs(Math.sin(bonusTimer * 10)) : 1;
       ctx.globalAlpha = 0.5 + pulse * 0.5;
-      roundCell(ctx, bonus.x, bonus.y, 3, "#ff2bd6", 20);
+      roundCell(ctx, bonus.x, bonus.y, 3, "#ff2bd6", true);
       ctx.globalAlpha = 1;
     }
 
     snake.forEach(function (seg, i) {
       const t = i / snake.length;
       const color = i === 0 ? "#00f6ff" : "rgba(0,246,255," + (0.95 - t * 0.55).toFixed(2) + ")";
-      roundCell(ctx, seg.x, seg.y, 2, color, i === 0 ? 16 : 6);
+      roundCell(ctx, seg.x, seg.y, 2, color, i === 0);
     });
 
     particles.forEach(function (p) {

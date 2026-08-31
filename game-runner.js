@@ -236,16 +236,25 @@
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
     });
   }
-  function drawSkyline(ctx) {
-    const sunX = W * 0.78, sunY = GROUND_Y - 150, sunR = 90;
-    const grad = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY + sunR);
+  const sunX = W * 0.78, sunY = GROUND_Y - 150, sunR = 90;
+  let sunSprite = null;
+  function buildSunSprite() {
+    const c = document.createElement("canvas");
+    c.width = sunR * 2; c.height = sunR * 2;
+    const sctx = c.getContext("2d");
+    const grad = sctx.createLinearGradient(0, 0, 0, sunR * 2);
     grad.addColorStop(0, "#fff500"); grad.addColorStop(0.5, "#ff2bd6"); grad.addColorStop(1, "#7c3aed");
-    ctx.save();
-    ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = grad; ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
-    ctx.fillStyle = "#05030f";
-    for (let y = -sunR; y < sunR; y += 10) { if (Math.floor(y / 10) % 2 === 0) continue; ctx.fillRect(sunX - sunR, sunY + y, sunR * 2, 5); }
-    ctx.restore();
+    sctx.save();
+    sctx.beginPath(); sctx.arc(sunR, sunR, sunR, 0, Math.PI * 2); sctx.clip();
+    sctx.fillStyle = grad; sctx.fillRect(0, 0, sunR * 2, sunR * 2);
+    sctx.fillStyle = "#05030f";
+    for (let y = 0; y < sunR * 2; y += 10) { if (Math.floor(y / 10) % 2 === 0) continue; sctx.fillRect(0, y, sunR * 2, 5); }
+    sctx.restore();
+    sunSprite = c;
+  }
+  function drawSkyline(ctx) {
+    if (!sunSprite) buildSunSprite();
+    ctx.drawImage(sunSprite, sunX - sunR, sunY - sunR);
     ctx.fillStyle = "rgba(124,58,237,0.28)";
     skyline.forEach(function (s) { ctx.fillRect(s.x, GROUND_Y - s.h, s.w, s.h); });
   }
@@ -277,9 +286,11 @@
       const oy = isLow ? GROUND_Y - o.h : o.y;
       const color = isLow ? "#ff7a1a" : "#ff2bd6";
       ctx.save();
-      ctx.shadowColor = color; ctx.shadowBlur = 16;
-      ctx.fillStyle = color; ctx.fillRect(o.x, oy, o.w, o.h);
-      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = color;
+      ctx.fillRect(o.x - 4, oy - 4, o.w + 8, o.h + 8);
+      ctx.globalAlpha = 1;
+      ctx.fillRect(o.x, oy, o.w, o.h);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(o.x, oy, o.w, o.h);
       ctx.restore();
     });
@@ -289,7 +300,10 @@
       const sy = s.y + Math.sin(s.t) * 4;
       ctx.save();
       ctx.translate(s.x, sy); ctx.rotate(s.t);
-      ctx.shadowColor = "#fff500"; ctx.shadowBlur = 14; ctx.fillStyle = "#fff500";
+      ctx.fillStyle = "#fff500";
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.arc(0, 0, s.r * 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.beginPath(); ctx.moveTo(0, -s.r); ctx.lineTo(s.r, 0); ctx.lineTo(0, s.r); ctx.lineTo(-s.r, 0); ctx.closePath(); ctx.fill();
       ctx.restore();
     });
@@ -299,13 +313,14 @@
       const py = p.y + Math.sin(p.t) * 5;
       ctx.save();
       ctx.translate(p.x, py); ctx.rotate(p.t * 0.5);
-      ctx.shadowColor = "#39ff88"; ctx.shadowBlur = 16; ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(57,255,136,0.3)"; ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * p.r, pyy = Math.sin(ang) * p.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
   }
@@ -326,13 +341,16 @@
     ctx.restore(); ctx.globalAlpha = 1;
   }
 
+  let bgGradient = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 10 * (shakeT / 0.35), (Math.random() - 0.5) * 10 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0620"); bg.addColorStop(1, "#05030f");
-    ctx.fillStyle = bg; ctx.fillRect(-20, -20, w + 40, h + 40);
+    if (!bgGradient) {
+      bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+    }
+    ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
     drawStars(ctx); drawSkyline(ctx); drawGrid(ctx); drawShards(ctx); drawPowerups(ctx);
     drawObstacles(ctx); drawPlayer(ctx); drawParticles(ctx); drawPopups(ctx);
     ctx.restore();

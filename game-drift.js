@@ -197,10 +197,7 @@
     });
   }
 
-  function drawCar(ctx, x, y, w, h, color, glow) {
-    ctx.save();
-    ctx.shadowColor = color; ctx.shadowBlur = glow || 14;
-    ctx.fillStyle = color;
+  function carPath(ctx, x, y, w, h) {
     ctx.beginPath();
     ctx.moveTo(x + w * 0.15, y);
     ctx.lineTo(x + w * 0.85, y);
@@ -209,6 +206,20 @@
     ctx.lineTo(x, y + h);
     ctx.lineTo(x, y + h * 0.2);
     ctx.closePath();
+  }
+  function drawCar(ctx, x, y, w, h, color, useBlur) {
+    ctx.save();
+    if (useBlur) {
+      ctx.shadowColor = color; ctx.shadowBlur = 20;
+    } else {
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = color;
+      carPath(ctx, x - 3, y - 3, w + 6, h + 6);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = color;
+    carPath(ctx, x, y, w, h);
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
@@ -228,7 +239,10 @@
       const by = b.y + Math.sin(b.t) * 3;
       ctx.save();
       ctx.translate(b.x, by); ctx.rotate(b.t);
-      ctx.shadowColor = "#00f6ff"; ctx.shadowBlur = 14; ctx.fillStyle = "#00f6ff";
+      ctx.fillStyle = "#00f6ff";
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.arc(0, 0, b.r * 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(b.r, 0); ctx.lineTo(0, b.r); ctx.lineTo(-b.r, 0); ctx.closePath(); ctx.fill();
       ctx.restore();
     });
@@ -236,13 +250,14 @@
       const sy = s.y + Math.sin(s.t) * 3;
       ctx.save();
       ctx.translate(s.x, sy); ctx.rotate(s.t * 0.5);
-      ctx.shadowColor = "#39ff88"; ctx.shadowBlur = 16; ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(57,255,136,0.3)"; ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * s.r, pyy = Math.sin(ang) * s.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = "#39ff88"; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
 
@@ -261,7 +276,7 @@
       ctx.strokeRect(player.x - 6 - pulse * 0.3, PLAYER_Y - 6 - pulse * 0.3, CAR_W + 12 + pulse * 0.6, CAR_H + 12 + pulse * 0.6);
       ctx.restore();
     }
-    drawCar(ctx, player.x, PLAYER_Y, CAR_W, CAR_H, "#00f6ff", 20);
+    drawCar(ctx, player.x, PLAYER_Y, CAR_W, CAR_H, "#00f6ff", true);
 
     particles.forEach(function (p) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);

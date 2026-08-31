@@ -202,22 +202,23 @@
     Arcade.endRun(score);
   }
 
+  let bgGradient = null;
   function onDraw(ctx, w, h) {
     ctx.save();
     if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8 * (shakeT / 0.35), (Math.random() - 0.5) * 8 * (shakeT / 0.35));
     ctx.clearRect(-20, -20, w + 40, h + 40);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#0c0620"); bg.addColorStop(1, "#05030f");
-    ctx.fillStyle = bg; ctx.fillRect(-20, -20, w + 40, h + 40);
+    if (!bgGradient) {
+      bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, "#0c0620"); bgGradient.addColorStop(1, "#05030f");
+    }
+    ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     bricks.forEach(function (br) {
       const color = ROW_COLORS[br.row % ROW_COLORS.length];
       ctx.save();
-      ctx.shadowColor = color; ctx.shadowBlur = br.hp > 1 ? 18 : 10;
       ctx.fillStyle = color; ctx.globalAlpha = br.hp > 1 ? 1 : 0.75;
       ctx.fillRect(br.x, br.y, br.w, br.h);
       ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
       ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
       ctx.strokeRect(br.x, br.y, br.w, br.h);
       ctx.restore();
@@ -225,15 +226,17 @@
 
     powerups.forEach(function (p) {
       const color = p.kind === "wide" ? "#00f6ff" : "#ff2bd6";
+      const glowColor = p.kind === "wide" ? "rgba(0,246,255,0.3)" : "rgba(255,43,214,0.3)";
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
-      ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.strokeStyle = glowColor; ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * p.r, pyy = Math.sin(ang) * p.r;
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
 
