@@ -295,6 +295,30 @@ html, body {
   color: var(--text-dim);
 }
 
+.quick-names {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.quick-name-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(0, 246, 255, 0.08);
+  border: 1.5px solid var(--panel-line);
+  border-radius: 999px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+}
+
+.quick-name-btn:hover { border-color: var(--cyan); background: rgba(0, 246, 255, 0.16); }
+.quick-name-btn:active { transform: scale(0.96); }
+
 .highscore-row {
   display: flex;
   gap: 8px;

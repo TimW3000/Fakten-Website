@@ -297,10 +297,20 @@
   gameOverBackBtn.addEventListener("click", backToHub);
   document.getElementById("resumeBtn").addEventListener("click", resumeRun);
 
-  submitScoreBtn.addEventListener("click", function () {
-    const name = (initialsInput.value || "???").trim().toUpperCase().slice(0, 3) || "???";
+  function submitWithName(rawName) {
+    const name = (rawName || "???").trim().toUpperCase().slice(0, 3) || "???";
     submitScore(activeGame.id, name, currentScore);
     highscoreForm.style.display = "none";
+  }
+
+  submitScoreBtn.addEventListener("click", function () {
+    submitWithName(initialsInput.value);
+  });
+
+  document.querySelectorAll(".quick-name-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      submitWithName(btn.dataset.name);
+    });
   });
 
   window.addEventListener("keydown", function (e) {
