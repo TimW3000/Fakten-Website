@@ -5,8 +5,10 @@
   "use strict";
 
   const CELL = 26, COLS = 10, ROWS = 18;
-  const W = CELL * COLS, H = CELL * ROWS;
+  const GRID_W = CELL * COLS, H = CELL * ROWS;
+  const PANEL_W = 92, W = GRID_W + PANEL_W;
   const SOFT_INTERVAL = 0.045;
+  const BOMB_CHANCE = 0.05;
 
   const SHAPES = {
     I: [[[0, 1], [1, 1], [2, 1], [3, 1]], [[2, 0], [2, 1], [2, 2], [2, 3]], [[0, 2], [1, 2], [2, 2], [3, 2]], [[1, 0], [1, 1], [1, 2], [1, 3]]],
@@ -15,15 +17,16 @@
     S: [[[1, 0], [2, 0], [0, 1], [1, 1]], [[1, 0], [1, 1], [2, 1], [2, 2]], [[1, 0], [2, 0], [0, 1], [1, 1]], [[1, 0], [1, 1], [2, 1], [2, 2]]],
     Z: [[[0, 0], [1, 0], [1, 1], [2, 1]], [[2, 0], [1, 1], [2, 1], [1, 2]], [[0, 0], [1, 0], [1, 1], [2, 1]], [[2, 0], [1, 1], [2, 1], [1, 2]]],
     J: [[[0, 0], [0, 1], [1, 1], [2, 1]], [[1, 0], [2, 0], [1, 1], [1, 2]], [[0, 1], [1, 1], [2, 1], [2, 2]], [[1, 0], [1, 1], [0, 2], [1, 2]]],
-    L: [[[2, 0], [0, 1], [1, 1], [2, 1]], [[1, 0], [1, 1], [1, 2], [2, 2]], [[0, 1], [1, 1], [2, 1], [0, 2]], [[0, 0], [1, 0], [1, 1], [1, 2]]]
+    L: [[[2, 0], [0, 1], [1, 1], [2, 1]], [[1, 0], [1, 1], [1, 2], [2, 2]], [[0, 1], [1, 1], [2, 1], [0, 2]], [[0, 0], [1, 0], [1, 1], [1, 2]]],
+    BOMB: [[[1, 1]], [[1, 1]], [[1, 1]], [[1, 1]]]
   };
   const TYPES = ["I", "O", "T", "S", "Z", "J", "L"];
   function typeColor(type) {
     const th = Arcade.theme();
-    return ({ I: th.player, O: th.collectible, T: th.powerupB, S: th.powerupA, Z: th.hazardB, J: th.ai, L: th.hazardA })[type];
+    return ({ I: th.player, O: th.collectible, T: th.powerupB, S: th.powerupA, Z: th.hazardB, J: th.ai, L: th.hazardA, BOMB: th.hazardB })[type];
   }
 
-  let board, cur, next, particles, popups;
+  let board, cur, queue, hold, holdUsed, particles, popups;
   let score = 0, lines = 0, level = 1;
   let dropTimer = 0, softDrop = false;
   let gameOver = false;
@@ -34,7 +37,8 @@
     for (let r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(null));
     return b;
   }
-  function randomType() { return TYPES[Math.floor(Math.random() * TYPES.length)]; }
+  function randomType() { return Math.random() < BOMB_CHANCE ? "BOMB" : TYPES[Math.floor(Math.random() * TYPES.length)]; }
+  function refillQueue() { while (queue.length < 2) queue.push(randomType()); }
   function spawnPiece(type) {
     return { type: type, rot: 0, x: 3, y: -1 };
   }
@@ -45,8 +49,10 @@
     score = 0; lines = 0; level = 1;
     dropTimer = dropInterval(); softDrop = false;
     gameOver = false; shakeT = 0;
-    cur = spawnPiece(randomType());
-    next = randomType();
+    queue = []; refillQueue();
+    cur = spawnPiece(queue.shift());
+    refillQueue();
+    hold = null; holdUsed = false;
     Arcade.setHud("score", 0);
     Arcade.setHud("lines", 0);
     Arcade.setHud("level", 1);
@@ -95,6 +101,7 @@
   function spawnPopup(x, y, text, color) { popups.push({ x: x, y: y, text: text, color: color, life: 0.7, maxLife: 0.7 }); }
 
   function lockPiece() {
+    if (cur.type === "BOMB") { detonateBomb(); return; }
     const color = cur.type;
     const cells = cellsOf(cur);
     let outOfBounds = false;
@@ -108,7 +115,7 @@
     let cleared = 0;
     for (let r = ROWS - 1; r >= 0; r--) {
       if (board[r].every(function (v) { return v !== null; })) {
-        spawnParticles(W / 2, r * CELL + CELL / 2, typeColor(board[r][Math.floor(COLS / 2)]) || Arcade.theme().collectible, 20);
+        spawnParticles(GRID_W / 2, r * CELL + CELL / 2, typeColor(board[r][Math.floor(COLS / 2)]) || Arcade.theme().collectible, 20);
         board.splice(r, 1);
         board.unshift(new Array(COLS).fill(null));
         cleared++;
@@ -119,17 +126,68 @@
       lines += cleared;
       const pts = [0, 100, 300, 500, 800][cleared] * level;
       score += pts;
-      spawnPopup(W / 2, H / 2, "+" + pts, Arcade.theme().collectible);
+      spawnPopup(GRID_W / 2, H / 2, "+" + pts, Arcade.theme().collectible);
       Arcade.beep(500, 900, 0.15, "triangle", 0.13);
       const newLevel = Math.floor(lines / 10) + 1;
-      if (newLevel !== level) { level = newLevel; spawnPopup(W / 2, H / 2 - 30, "LEVEL " + level, Arcade.theme().player); }
+      if (newLevel !== level) { level = newLevel; spawnPopup(GRID_W / 2, H / 2 - 30, "LEVEL " + level, Arcade.theme().player); }
       Arcade.setHud("score", score);
       Arcade.setHud("lines", lines);
       Arcade.setHud("level", level);
     }
 
-    cur = spawnPiece(next);
-    next = randomType();
+    holdUsed = false;
+    cur = spawnPiece(queue.shift());
+    refillQueue();
+    if (!fits(cur)) { crash(); return; }
+    dropTimer = dropInterval();
+  }
+
+  function detonateBomb() {
+    const cells = cellsOf(cur);
+    const bc = cells[0][0], br = cells[0][1];
+    if (br < 0) { crash(); return; }
+    shakeT = 0.3;
+    Arcade.beep(150, 50, 0.3, "sawtooth", 0.18);
+    let cleared = 0;
+    for (let r = br - 1; r <= br + 1; r++) {
+      for (let c = bc - 1; c <= bc + 1; c++) {
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+        if (board[r][c]) {
+          spawnParticles(c * CELL + CELL / 2, r * CELL + CELL / 2, typeColor(board[r][c]), 10);
+          board[r][c] = null;
+          cleared++;
+        }
+      }
+    }
+    if (cleared > 0) {
+      const pts = cleared * 15;
+      score += pts;
+      spawnPopup(bc * CELL + CELL / 2, br * CELL + CELL / 2, "+" + pts, Arcade.theme().hazardB);
+      Arcade.setHud("score", score);
+    }
+    spawnParticles(bc * CELL + CELL / 2, br * CELL + CELL / 2, Arcade.theme().hazardA, 24);
+
+    holdUsed = false;
+    cur = spawnPiece(queue.shift());
+    refillQueue();
+    if (!fits(cur)) { crash(); return; }
+    dropTimer = dropInterval();
+  }
+
+  function holdPiece() {
+    if (gameOver || holdUsed) return;
+    const curType = cur.type;
+    if (hold == null) {
+      hold = curType;
+      cur = spawnPiece(queue.shift());
+      refillQueue();
+    } else {
+      const swapType = hold;
+      hold = curType;
+      cur = spawnPiece(swapType);
+    }
+    holdUsed = true;
+    Arcade.beep(400, 600, 0.08, "square", 0.08);
     if (!fits(cur)) { crash(); return; }
     dropTimer = dropInterval();
   }
@@ -175,6 +233,59 @@
     lockPiece();
   }
 
+  function drawMiniPiece(ctx, type, x, y, boxW, boxH) {
+    if (!type) return;
+    const cells = SHAPES[type][0];
+    const mcell = 13;
+    let minC = 99, maxC = -99, minR = 99, maxR = -99;
+    cells.forEach(function (c) {
+      minC = Math.min(minC, c[0]); maxC = Math.max(maxC, c[0]);
+      minR = Math.min(minR, c[1]); maxR = Math.max(maxR, c[1]);
+    });
+    const pw = (maxC - minC + 1) * mcell, ph = (maxR - minR + 1) * mcell;
+    const ox = x + (boxW - pw) / 2 - minC * mcell, oy = y + (boxH - ph) / 2 - minR * mcell;
+    ctx.save();
+    ctx.fillStyle = typeColor(type);
+    cells.forEach(function (c) {
+      ctx.fillRect(ox + c[0] * mcell + 1, oy + c[1] * mcell + 1, mcell - 2, mcell - 2);
+    });
+    ctx.restore();
+  }
+
+  function drawSidePanel(ctx, th, retro) {
+    const px = GRID_W;
+    const boxW = PANEL_W - 20, boxH = 68;
+    ctx.save();
+    ctx.fillStyle = retro ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.04)";
+    ctx.fillRect(px, 0, PANEL_W, H);
+    ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.15)"; ctx.lineWidth = 1;
+    ctx.strokeRect(px, 0, PANEL_W, H);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = "600 10px 'JetBrains Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = retro ? "#000" : "#e8e6ff";
+    ctx.fillText("HALTEN", px + PANEL_W / 2, 16);
+    ctx.restore();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
+    ctx.strokeRect(px + 10, 22, boxW, boxH);
+    drawMiniPiece(ctx, hold, px + 10, 22, boxW, boxH);
+
+    ctx.save();
+    ctx.font = "600 10px 'JetBrains Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = retro ? "#000" : "#e8e6ff";
+    ctx.fillText("NÄCHSTE", px + PANEL_W / 2, 112);
+    ctx.restore();
+    queue.forEach(function (t, i) {
+      const by = 118 + i * (boxH + 10);
+      ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 1;
+      ctx.strokeRect(px + 10, by, boxW, boxH);
+      drawMiniPiece(ctx, t, px + 10, by, boxW, boxH);
+    });
+  }
+
   let bgGradient = null, bgGradientFor = null;
   function onDraw(ctx, w, h) {
     const th = Arcade.theme();
@@ -192,7 +303,7 @@
     ctx.strokeStyle = retro ? "rgba(255,255,255,0.2)" : "rgba(232,230,255,0.06)"; ctx.lineWidth = 1;
     ctx.beginPath();
     for (let c = 0; c <= COLS; c++) { ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, H); }
-    for (let r = 0; r <= ROWS; r++) { ctx.moveTo(0, r * CELL); ctx.lineTo(W, r * CELL); }
+    for (let r = 0; r <= ROWS; r++) { ctx.moveTo(0, r * CELL); ctx.lineTo(GRID_W, r * CELL); }
     ctx.stroke();
 
     function cell(c, r, color, alpha) {
@@ -220,6 +331,16 @@
       cellsOf(cur).forEach(function (p) {
         if (p[1] >= 0) cell(p[0], p[1], typeColor(cur.type));
       });
+      if (cur.type === "BOMB") {
+        const bp = cellsOf(cur)[0];
+        if (bp[1] >= 0) {
+          const pulse = 2 + Math.sin(performance.now() / 90) * 2;
+          ctx.save();
+          ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+          ctx.strokeRect(bp[0] * CELL + 1 - pulse, bp[1] * CELL + 1 - pulse, CELL - 2 + pulse * 2, CELL - 2 + pulse * 2);
+          ctx.restore();
+        }
+      }
     }
 
     particles.forEach(function (p) {
@@ -235,6 +356,8 @@
       ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
     });
     ctx.restore(); ctx.globalAlpha = 1;
+
+    drawSidePanel(ctx, th, retro);
     ctx.restore();
   }
 
@@ -244,6 +367,7 @@
     if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") { e.preventDefault(); tryRotate(); }
     if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") { softDrop = true; }
     if (e.key === " ") { e.preventDefault(); hardDrop(); }
+    if (e.key === "c" || e.key === "C" || e.key === "Shift") { e.preventDefault(); holdPiece(); }
   }
   function onKeyUp(e) {
     if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") { softDrop = false; }
@@ -267,7 +391,7 @@
     if (touchStartX == null) return;
     const dy = e.clientY - touchStartY;
     if (!touchMoved) {
-      if (dy > 40) hardDrop(); else tryRotate();
+      if (dy > 40) hardDrop(); else if (dy < -40) holdPiece(); else tryRotate();
     }
     touchStartX = null; touchStartY = null;
   }
@@ -279,8 +403,8 @@
     accent: "#ff2bd6",
     canvasW: W,
     canvasH: H,
-    description: "Sortiere die fallenden Teile so, dass volle Reihen entstehen — sie verschwinden und bringen Punkte.<br>Je mehr Reihen auf einmal, desto mehr Punkte. Mit steigendem Level wird es schneller.",
-    controlsHint: "Bewegen: ← → · Drehen: ↑ · Weich fallen: ↓ · Hart fallen: ␣ · Touch: Wischen/Tippen",
+    description: "Sortiere die fallenden Teile so, dass volle Reihen entstehen — sie verschwinden und bringen Punkte.<br>Je mehr Reihen auf einmal, desto mehr Punkte. Mit C kannst du ein Teil zwischenlagern (halten), rechts siehst du die nächsten 2 Teile. Selten erscheint ein pulsierendes Bomben-Teil, das beim Landen ein 3x3-Feld freiräumt.",
+    controlsHint: "Bewegen: ← → · Drehen: ↑ · Weich fallen: ↓ · Hart fallen: ␣ · Halten: C · Touch: Wischen/Tippen/Hoch",
     startLabel: "Spiel starten",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "lines", label: "Reihen" }, { id: "level", label: "Level" }],
     onStart: onStart,
