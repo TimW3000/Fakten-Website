@@ -33,12 +33,38 @@
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const toughChance = Math.min(0.15 + level * 0.05, 0.5);
-        const hp = r < 2 && Math.random() < toughChance + 0.2 ? 2 : (Math.random() < toughChance ? 2 : 1);
+        const roll = Math.random();
+        let kind = "normal", hp;
+        if (roll < 0.06) {
+          kind = "explosive"; hp = 1;
+        } else if (roll < 0.06 + Math.min(0.04 + level * 0.01, 0.1)) {
+          kind = "steel"; hp = Infinity;
+        } else {
+          hp = r < 2 && Math.random() < toughChance + 0.2 ? 2 : (Math.random() < toughChance ? 2 : 1);
+        }
         bricks.push({
           x: BRICK_MARGIN + c * (BRICK_W + BRICK_GAP),
           y: BRICK_TOP + r * (BRICK_H + BRICK_GAP),
-          w: BRICK_W, h: BRICK_H, hp: hp, maxHp: hp, row: r
+          w: BRICK_W, h: BRICK_H, hp: hp, maxHp: hp, row: r, col: c, kind: kind
         });
+      }
+    }
+  }
+  function triggerExplosion(br) {
+    shakeT = Math.max(shakeT, 0.2);
+    spawnParticles(br.x + br.w / 2, br.y + br.h / 2, Arcade.theme().hazardA, 30);
+    Arcade.beep(150, 50, 0.25, "sawtooth", 0.15);
+    for (let i = bricks.length - 1; i >= 0; i--) {
+      const nb = bricks[i];
+      if (nb.kind === "steel") continue;
+      const dr = Math.abs(nb.row - br.row), dc = Math.abs(nb.col - br.col);
+      if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+        const pts = nb.maxHp * 8;
+        score += pts;
+        Arcade.setHud("score", Math.floor(score));
+        spawnPopup(nb.x + nb.w / 2, nb.y + nb.h / 2, "+" + pts, Arcade.theme().hazardA);
+        spawnParticles(nb.x + nb.w / 2, nb.y + nb.h / 2, rowColors()[nb.row % rowColors().length], 14);
+        bricks.splice(i, 1);
       }
     }
   }
@@ -80,7 +106,8 @@
   }
   function spawnPopup(x, y, text, color) { popups.push({ x: x, y: y, text: text, color: color, life: 0.6, maxLife: 0.6 }); }
   function spawnPowerup(x, y) {
-    const kind = Math.random() < 0.5 ? "wide" : "multi";
+    const r = Math.random();
+    const kind = r < 0.4 ? "wide" : r < 0.75 ? "multi" : "life";
     powerups.push({ kind: kind, x: x, y: y, r: 10, t: 0 });
   }
 
@@ -127,6 +154,11 @@
         const overlapX = Math.min(b.x + BALL_R - br.x, br.x + br.w - (b.x - BALL_R));
         const overlapY = Math.min(b.y + BALL_R - br.y, br.y + br.h - (b.y - BALL_R));
         if (overlapX < overlapY) b.vx *= -1; else b.vy *= -1;
+        if (br.kind === "steel") {
+          spawnParticles(b.x, b.y, "#c3cdd6", 6);
+          Arcade.beep(220, 160, 0.05, "square", 0.07);
+          break;
+        }
         br.hp -= 1;
         spawnParticles(br.x + br.w / 2, br.y + br.h / 2, rowColors()[br.row % rowColors().length], 8);
         Arcade.beep(500, 260, 0.08, "triangle", 0.1);
@@ -136,7 +168,9 @@
           Arcade.setHud("score", Math.floor(score));
           spawnPopup(br.x + br.w / 2, br.y + br.h / 2, "+" + pts, Arcade.theme().collectible);
           if (Math.random() < 0.12) spawnPowerup(br.x + br.w / 2, br.y + br.h / 2);
+          const wasExplosive = br.kind === "explosive";
           bricks.splice(i, 1);
+          if (wasExplosive) triggerExplosion(br);
         }
         break;
       }
@@ -171,11 +205,15 @@
       const pw = paddleW();
       if (Arcade.circlesOverlap(paddle.x + pw / 2, PADDLE_Y + PADDLE_H / 2, pw / 2, p.x, p.y, p.r)) {
         if (p.kind === "wide") { wideTime = 9; spawnPopup(p.x, p.y, "BREIT", Arcade.theme().powerupA); }
-        else {
+        else if (p.kind === "multi") {
           const src = balls[0] || newBall();
           balls.push(newBall(-src.speed * 0.6, -src.speed * 0.8));
           balls.push(newBall(src.speed * 0.6, -src.speed * 0.8));
           spawnPopup(p.x, p.y, "MULTI-BALL", Arcade.theme().powerupB);
+        } else {
+          lives = Math.min(lives + 1, 5);
+          Arcade.setHud("lives", livesDisplay());
+          spawnPopup(p.x, p.y, "+LEBEN", Arcade.theme().collectible);
         }
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
         spawnParticles(p.x, p.y, Arcade.theme().powerupA);
@@ -219,18 +257,36 @@
     ctx.fillStyle = bgGradient; ctx.fillRect(-20, -20, w + 40, h + 40);
 
     bricks.forEach(function (br) {
-      const color = rowColors()[br.row % rowColors().length];
       ctx.save();
-      ctx.fillStyle = color; ctx.globalAlpha = br.hp > 1 ? 1 : 0.75;
-      ctx.fillRect(br.x, br.y, br.w, br.h);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
-      ctx.strokeRect(br.x, br.y, br.w, br.h);
+      if (br.kind === "steel") {
+        ctx.fillStyle = retro ? "#8d99a6" : "#5b6b7a";
+        ctx.fillRect(br.x, br.y, br.w, br.h);
+        ctx.strokeStyle = retro ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.55)"; ctx.lineWidth = 1;
+        ctx.strokeRect(br.x, br.y, br.w, br.h);
+        ctx.strokeStyle = retro ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)";
+        ctx.beginPath(); ctx.moveTo(br.x + 4, br.y + br.h - 4); ctx.lineTo(br.x + br.w - 4, br.y + 4); ctx.stroke();
+      } else if (br.kind === "explosive") {
+        const pulse = 0.65 + 0.35 * Math.sin(elapsed * 6 + br.x);
+        ctx.fillStyle = th.hazardA; ctx.globalAlpha = pulse;
+        ctx.fillRect(br.x, br.y, br.w, br.h);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.55)"; ctx.lineWidth = 1;
+        ctx.strokeRect(br.x, br.y, br.w, br.h);
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(br.x + br.w / 2, br.y + br.h / 2, 3, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const color = rowColors()[br.row % rowColors().length];
+        ctx.fillStyle = color; ctx.globalAlpha = br.hp > 1 ? 1 : 0.75;
+        ctx.fillRect(br.x, br.y, br.w, br.h);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = retro ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
+        ctx.strokeRect(br.x, br.y, br.w, br.h);
+      }
       ctx.restore();
     });
 
     powerups.forEach(function (p) {
-      const color = p.kind === "wide" ? th.powerupA : th.powerupB;
+      const color = p.kind === "wide" ? th.powerupA : p.kind === "multi" ? th.powerupB : th.collectible;
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
       ctx.strokeStyle = color + "4d"; ctx.lineWidth = 7;
@@ -313,7 +369,7 @@
     accent: "#39ff88",
     canvasW: W,
     canvasH: H,
-    description: "Zerstöre alle Blöcke, ohne den Ball fallen zu lassen. 3 Bälle, dann ist Schluss.<br>Cyan-Kapseln machen das Paddle breiter, magenta Kapseln teilen den Ball. Nach jedem Level wird es schneller.",
+    description: "Zerstöre alle Blöcke, ohne den Ball fallen zu lassen. 3 Bälle, dann ist Schluss.<br>Cyan-Kapseln machen das Paddle breiter, magenta Kapseln teilen den Ball, gelbe Kapseln geben ein Extra-Leben. Graue Stahlblöcke sind unzerstörbar, orange Blöcke reißen beim Zerstören Nachbarblöcke mit.",
     controlsHint: "Bewegen: ← → / A D / Ziehen · Start: ␣ / Klicken",
     startLabel: "Level 1 starten",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "level", label: "Level" }, { id: "lives", label: "Leben" }],
