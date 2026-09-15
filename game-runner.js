@@ -39,7 +39,7 @@
   function playerHeight() { return player.ducking ? PLAYER_H_DUCK : PLAYER_H_STAND; }
 
   function onStart() {
-    player = { y: GROUND_Y - PLAYER_H_STAND, vy: 0, ducking: false, grounded: true, jumpsUsed: 0, shielded: false, shieldTime: 0, duckSfxPlayed: false, trail: [] };
+    player = { y: GROUND_Y - PLAYER_H_STAND, vy: 0, ducking: false, grounded: true, jumpsUsed: 0, shielded: false, shieldTime: 0, magnetTime: 0, multTime: 0, duckSfxPlayed: false, trail: [] };
     obstacles = []; shards = []; powerups = []; particles = []; popups = [];
     groundLines = [];
     for (let i = 0; i < 24; i++) groundLines.push(i * 40);
@@ -56,23 +56,43 @@
   }
 
   function spawnObstacle() {
-    const kind = Math.random() < 0.55 ? "low" : "high";
-    if (kind === "low") {
+    const roll = Math.random();
+    if (roll < 0.42) {
       const w = 26 + Math.random() * 22;
       obstacles.push({ kind: "low", x: W + w, w: w, h: 38 + Math.random() * 30, y: 0 });
-    } else {
+    } else if (roll < 0.78) {
       const w = 60 + Math.random() * 40;
       const h = 24 + Math.random() * 10;
       const bottomY = GROUND_Y - PLAYER_H_DUCK - DUCK_CLEARANCE;
-      obstacles.push({ kind: "high", x: W + w, w: w, h: h, y: bottomY - h });
+      obstacles.push({ kind: "high", x: W + w, w: w, h: h, y: bottomY - h, oscillate: false });
+    } else if (roll < 0.9) {
+      // schwebende Barriere, die vertikal pendelt — bleibt immer duckbar,
+      // aber der Zeitpunkt zum Ducken verschiebt sich mit der Phase
+      const w = 56 + Math.random() * 30;
+      const h = 22 + Math.random() * 8;
+      const amp = 10 + Math.random() * 6;
+      const safeBottom = GROUND_Y - PLAYER_H_DUCK - DUCK_CLEARANCE;
+      const centerBottom = safeBottom - amp;
+      obstacles.push({ kind: "high", x: W + w, w: w, h: h, y: centerBottom - h, oscillate: true, centerBottom: centerBottom, amp: amp, phase: Math.random() * Math.PI * 2 });
+    } else {
+      // Doppel-Hindernis: erst springen, direkt danach ducken
+      const gap = 90 + Math.random() * 20;
+      const w1 = 26 + Math.random() * 16;
+      obstacles.push({ kind: "low", x: W + w1, w: w1, h: 34 + Math.random() * 20, y: 0 });
+      const w2 = 56 + Math.random() * 20;
+      const h2 = 22 + Math.random() * 8;
+      const bottomY = GROUND_Y - PLAYER_H_DUCK - DUCK_CLEARANCE;
+      obstacles.push({ kind: "high", x: W + w1 + gap + w2, w: w2, h: h2, y: bottomY - h2, oscillate: false });
     }
   }
   function spawnShard() {
     const high = Math.random() < 0.5;
     shards.push({ x: W + 20, y: high ? GROUND_Y - PLAYER_H_STAND - 50 - Math.random() * 40 : GROUND_Y - 16, r: 8, t: Math.random() * Math.PI * 2 });
   }
+  const POWERUP_KINDS = ["shield", "magnet", "multiplier"];
   function spawnPowerup() {
-    powerups.push({ x: W + 20, y: GROUND_Y - PLAYER_H_STAND - 30 - Math.random() * 70, r: 12, t: Math.random() * Math.PI * 2 });
+    const kind = POWERUP_KINDS[Math.floor(Math.random() * POWERUP_KINDS.length)];
+    powerups.push({ kind: kind, x: W + 20, y: GROUND_Y - PLAYER_H_STAND - 30 - Math.random() * 70, r: 12, t: Math.random() * Math.PI * 2 });
   }
   function spawnParticles(x, y, color) {
     for (let i = 0; i < 22; i++) {
@@ -113,6 +133,8 @@
       player.shieldTime -= dt;
       if (player.shieldTime <= 0) player.shielded = false;
     }
+    if (player.magnetTime > 0) player.magnetTime -= dt;
+    if (player.multTime > 0) player.multTime -= dt;
 
     player.trail.push({ x: PLAYER_X, y: player.y + h / 2, h: h });
     if (player.trail.length > 6) player.trail.shift();
@@ -135,13 +157,17 @@
     shardTimer -= dt;
     if (shardTimer <= 0) { spawnShard(); shardTimer = 1.3 + Math.random() * 1.4; }
     powerupTimer -= dt;
-    if (powerupTimer <= 0) { spawnPowerup(); powerupTimer = 16 + Math.random() * 10; }
+    if (powerupTimer <= 0) { spawnPowerup(); powerupTimer = 13 + Math.random() * 8; }
 
     const pY = player.y;
 
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i];
       o.x -= speed * dt;
+      if (o.oscillate) {
+        o.phase += dt * 2.4;
+        o.y = o.centerBottom + Math.sin(o.phase) * o.amp - o.h;
+      }
       const oy = o.kind === "low" ? GROUND_Y - o.h : o.y;
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, o.x, oy, o.w, o.h)) {
         if (player.shielded) {
@@ -155,13 +181,22 @@
       if (o.x + o.w < -10) obstacles.splice(i, 1);
     }
 
+    const playerCx = PLAYER_X + PLAYER_W_STAND / 2, playerCy = pY + h / 2;
     for (let i = shards.length - 1; i >= 0; i--) {
       const s = shards[i];
       s.x -= speed * dt;
       s.t += dt * 4;
+      if (player.magnetTime > 0) {
+        const dx = playerCx - s.x, dy = playerCy - s.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 180 && dist > 1) {
+          s.x += (dx / dist) * 420 * dt;
+          s.y += (dy / dist) * 420 * dt;
+        }
+      }
       const sy = s.y + Math.sin(s.t) * 4;
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, s.x - s.r, sy - s.r, s.r * 2, s.r * 2)) {
-        const pts = 20 + (comboStreak - 1) * 10;
+        const pts = (20 + (comboStreak - 1) * 10) * (player.multTime > 0 ? 2 : 1);
         score += pts;
         spawnPopup(s.x, sy, "+" + pts, Arcade.theme().collectible);
         spawnParticles(s.x, sy, Arcade.theme().collectible);
@@ -182,10 +217,20 @@
       p.x -= speed * dt;
       p.t += dt * 3;
       if (Arcade.rectsOverlap(PLAYER_X, pY, PLAYER_W_STAND, h, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2)) {
-        player.shielded = true;
-        player.shieldTime = SHIELD_DURATION;
-        spawnPopup(p.x, p.y, "SCHILD", Arcade.theme().powerupA);
-        spawnParticles(p.x, p.y, Arcade.theme().powerupA);
+        if (p.kind === "magnet") {
+          player.magnetTime = 6;
+          spawnPopup(p.x, p.y, "MAGNET", Arcade.theme().powerupB);
+          spawnParticles(p.x, p.y, Arcade.theme().powerupB);
+        } else if (p.kind === "multiplier") {
+          player.multTime = 6;
+          spawnPopup(p.x, p.y, "2X PUNKTE", Arcade.theme().collectible);
+          spawnParticles(p.x, p.y, Arcade.theme().collectible);
+        } else {
+          player.shielded = true;
+          player.shieldTime = SHIELD_DURATION;
+          spawnPopup(p.x, p.y, "SCHILD", Arcade.theme().powerupA);
+          spawnParticles(p.x, p.y, Arcade.theme().powerupA);
+        }
         playSfx("shield");
         powerups.splice(i, 1);
         continue;
@@ -387,10 +432,11 @@
   function drawPowerups(ctx) {
     const th = Arcade.theme();
     powerups.forEach(function (p) {
+      const color = p.kind === "magnet" ? th.powerupB : p.kind === "multiplier" ? th.collectible : th.powerupA;
       const py = p.y + Math.sin(p.t) * 5;
       ctx.save();
       ctx.translate(p.x, py); ctx.rotate(p.t * 0.5);
-      ctx.strokeStyle = th.powerupA + "4d";
+      ctx.strokeStyle = color + "4d";
       ctx.lineWidth = 7;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
@@ -398,7 +444,11 @@
         if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
       }
       ctx.closePath(); ctx.stroke();
-      ctx.strokeStyle = th.powerupA; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.fillStyle = color;
+      ctx.fillText(p.kind === "magnet" ? "M" : p.kind === "multiplier" ? "2X" : "S", p.x, py + 4);
       ctx.restore();
     });
   }
@@ -482,7 +532,7 @@
     accent: "#00f6ff",
     canvasW: W,
     canvasH: H,
-    description: "Lauf durchs Grid, spring über die Blocker, duck unter die Barrieren.<br>Ein Treffer beendet den Run — sammle gelbe Shards für Combo-Bonus und grüne Schilde für kurze Unverwundbarkeit. In der Luft geht ein zweiter Sprung.",
+    description: "Lauf durchs Grid, spring über die Blocker, duck unter Barrieren — auch pendelnde und Doppel-Hindernisse.<br>Sammle gelbe Shards für Combo-Bonus. Powerups: Schild (Unverwundbarkeit), Magnet (zieht Shards an), 2x (doppelte Punkte). In der Luft geht ein zweiter Sprung.",
     controlsHint: "Springen: ␣ / ↑ / Tippen (zweimal = Doppelsprung) · Ducken: ↓ / S / Halten",
     startLabel: "Run starten",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "speed", label: "Tempo" }, { id: "combo", label: "Combo" }],
