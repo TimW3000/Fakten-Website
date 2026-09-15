@@ -12,32 +12,41 @@
   const BULLET_SPEED = 820;
   const SHIELD_DURATION = 5;
   const SPREAD_DURATION = 7;
+  const RAPID_DURATION = 6;
+  const BOSS_INTERVAL = 45;
 
   let ship, bullets, enemyBullets, enemies, powerups, particles, popups, stars;
   let score = 0, elapsed = 0, wave = 1;
-  let spawnTimer = 0, fireTimer = 0, powerupTimer = 0;
+  let spawnTimer = 0, fireTimer = 0, powerupTimer = 0, bossTimer = 0;
+  let bossActive = false;
   let shakeT = 0;
   let moveDir = 0; // -1,0,1 keyboard
   let dragTargetX = null;
 
   function onStart() {
-    ship = { x: W / 2 - SHIP_W / 2, shielded: false, shieldTime: 0, spreadTime: 0 };
+    ship = { x: W / 2 - SHIP_W / 2, shielded: false, shieldTime: 0, spreadTime: 0, rapidTime: 0 };
     bullets = []; enemyBullets = []; enemies = []; powerups = []; particles = []; popups = [];
     stars = [];
     for (let i = 0; i < 60; i++) stars.push({ x: Math.random() * W, y: Math.random() * H, r: 0.6 + Math.random() * 1.6, tw: Math.random() * Math.PI * 2, vy: 30 + Math.random() * 60 });
     score = 0; elapsed = 0; wave = 1;
-    spawnTimer = 0.8; fireTimer = 0; powerupTimer = 12 + Math.random() * 5;
+    spawnTimer = 0.8; fireTimer = 0; powerupTimer = 12 + Math.random() * 5; bossTimer = BOSS_INTERVAL;
+    bossActive = false;
     shakeT = 0; moveDir = 0; dragTargetX = null;
     Arcade.setHud("score", 0);
     Arcade.setHud("wave", 1);
   }
 
   function spawnEnemy() {
-    const big = Math.random() < 0.28;
-    if (big) {
+    const roll = Math.random();
+    if (roll < 0.24) {
       enemies.push({
         kind: "saucer", x: 40 + Math.random() * (W - 80), y: -40, w: 46, h: 30,
         hp: 3, maxHp: 3, vy: 70 + Math.random() * 30, fireT: 1 + Math.random() * 2, phase: Math.random() * Math.PI * 2
+      });
+    } else if (roll < 0.46) {
+      enemies.push({
+        kind: "zigzag", x: 30 + Math.random() * (W - 60), y: -24, w: 20, h: 20,
+        hp: 1, maxHp: 1, vy: 110 + Math.random() * 40, zigDir: Math.random() < 0.5 ? -1 : 1, zigT: 0.15 + Math.random() * 0.18
       });
     } else {
       enemies.push({
@@ -46,8 +55,18 @@
       });
     }
   }
+  function spawnBoss() {
+    bossActive = true;
+    const hp = 22 + wave * 4;
+    enemies.push({
+      kind: "boss", x: W / 2 - 55, y: -70, w: 110, h: 60,
+      hp: hp, maxHp: hp, vy: 55, targetY: 90, baseX: W / 2 - 55, phase: Math.random() * Math.PI * 2, fireT: 2
+    });
+    spawnPopup(W / 2, 130, "BOSS!", Arcade.theme().hazardB);
+  }
   function spawnPowerup() {
-    const kind = Math.random() < 0.5 ? "shield" : "spread";
+    const r = Math.random();
+    const kind = r < 0.36 ? "shield" : r < 0.7 ? "spread" : "rapid";
     powerups.push({ kind: kind, x: 30 + Math.random() * (W - 60), y: -20, r: 12, t: Math.random() * Math.PI * 2 });
   }
   function spawnParticles(x, y, color, n) {
@@ -85,9 +104,10 @@
 
     if (ship.shielded) { ship.shieldTime -= dt; if (ship.shieldTime <= 0) ship.shielded = false; }
     if (ship.spreadTime > 0) ship.spreadTime -= dt;
+    if (ship.rapidTime > 0) ship.rapidTime -= dt;
 
     fireTimer -= dt;
-    if (fireTimer <= 0) { fireBullets(); fireTimer = FIRE_INTERVAL; }
+    if (fireTimer <= 0) { fireBullets(); fireTimer = ship.rapidTime > 0 ? FIRE_INTERVAL * 0.42 : FIRE_INTERVAL; }
 
     stars.forEach(function (s) { s.y += s.vy * dt; if (s.y > H) { s.y = -4; s.x = Math.random() * W; } });
 
@@ -96,6 +116,8 @@
     if (spawnTimer <= 0) { spawnEnemy(); spawnTimer = spawnInterval + Math.random() * 0.25; }
     powerupTimer -= dt;
     if (powerupTimer <= 0) { spawnPowerup(); powerupTimer = 15 + Math.random() * 8; }
+    bossTimer -= dt;
+    if (bossTimer <= 0 && !bossActive) { spawnBoss(); bossTimer = BOSS_INTERVAL; }
 
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
@@ -104,8 +126,8 @@
     }
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       const b = enemyBullets[i];
-      b.y += b.vy * dt;
-      if (b.y > H + 10) { enemyBullets.splice(i, 1); continue; }
+      b.x += (b.vx || 0) * dt; b.y += b.vy * dt;
+      if (b.y > H + 10 || b.x < -20 || b.x > W + 20) { enemyBullets.splice(i, 1); continue; }
       if (Arcade.circlesOverlap(ship.x + SHIP_W / 2, SHIP_Y + SHIP_H / 2, SHIP_W / 2, b.x, b.y, 5)) {
         enemyBullets.splice(i, 1);
         if (ship.shielded) { spawnParticles(b.x, b.y, Arcade.theme().powerupA, 10); continue; }
@@ -116,10 +138,34 @@
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      e.y += e.vy * dt;
-      e.phase += dt * 2;
-      e.x += Math.sin(e.phase) * 22 * dt;
-      e.x = Arcade.clamp(e.x, 4, W - e.w - 4);
+      if (e.kind === "boss") {
+        if (e.y < e.targetY) {
+          e.y += e.vy * dt;
+        } else {
+          e.phase += dt * 0.8;
+          e.x = Arcade.clamp(e.baseX + Math.sin(e.phase) * 110, 4, W - e.w - 4);
+          e.fireT -= dt;
+          if (e.fireT <= 0) {
+            const n = 5, spd = 230 + wave * 8;
+            for (let k = 0; k < n; k++) {
+              const ang = (k - (n - 1) / 2) * 0.3;
+              enemyBullets.push({ x: e.x + e.w / 2, y: e.y + e.h, vx: Math.sin(ang) * spd, vy: Math.cos(ang) * spd });
+            }
+            e.fireT = 1.8 + Math.random() * 0.6;
+            Arcade.beep(200, 120, 0.16, "sawtooth", 0.09);
+          }
+        }
+      } else if (e.kind === "zigzag") {
+        e.y += e.vy * dt;
+        e.zigT -= dt;
+        if (e.zigT <= 0) { e.zigDir = Math.random() < 0.5 ? -1 : 1; e.zigT = 0.15 + Math.random() * 0.18; }
+        e.x = Arcade.clamp(e.x + e.zigDir * 260 * dt, 4, W - e.w - 4);
+      } else {
+        e.y += e.vy * dt;
+        e.phase += dt * 2;
+        e.x += Math.sin(e.phase) * 22 * dt;
+        e.x = Arcade.clamp(e.x, 4, W - e.w - 4);
+      }
 
       if (e.kind === "saucer") {
         e.fireT -= dt;
@@ -132,6 +178,7 @@
       if (Arcade.rectsOverlap(ship.x, SHIP_Y, SHIP_W, SHIP_H, e.x, e.y, e.w, e.h)) {
         if (ship.shielded) {
           spawnParticles(e.x + e.w / 2, e.y + e.h / 2, Arcade.theme().powerupA);
+          if (e.kind === "boss") bossActive = false;
           enemies.splice(i, 1);
           continue;
         }
@@ -146,12 +193,14 @@
           e.hp -= 1;
           spawnParticles(b.x, b.y, Arcade.theme().player, 6);
           if (e.hp <= 0) {
-            const pts = e.kind === "saucer" ? 40 : 10;
+            const pts = e.kind === "boss" ? 500 : e.kind === "saucer" ? 40 : e.kind === "zigzag" ? 25 : 10;
             score += pts;
             Arcade.setHud("score", Math.floor(score));
             spawnPopup(e.x + e.w / 2, e.y, "+" + pts, Arcade.theme().collectible);
-            spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.kind === "saucer" ? Arcade.theme().hazardB : Arcade.theme().hazardA, 26);
-            Arcade.beep(300, 90, 0.14, "sawtooth", 0.14);
+            const boomColor = e.kind === "boss" ? Arcade.theme().hazardB : e.kind === "saucer" ? Arcade.theme().hazardB : Arcade.theme().hazardA;
+            spawnParticles(e.x + e.w / 2, e.y + e.h / 2, boomColor, e.kind === "boss" ? 50 : 26);
+            Arcade.beep(300, 90, e.kind === "boss" ? 0.3 : 0.14, "sawtooth", e.kind === "boss" ? 0.2 : 0.14);
+            if (e.kind === "boss") { bossActive = false; shakeT = 0.4; }
             enemies.splice(i, 1);
           }
           break;
@@ -168,10 +217,14 @@
           ship.shielded = true; ship.shieldTime = SHIELD_DURATION;
           spawnPopup(p.x, p.y, "SCHILD", Arcade.theme().powerupA);
           spawnParticles(p.x, p.y, Arcade.theme().powerupA);
-        } else {
+        } else if (p.kind === "spread") {
           ship.spreadTime = SPREAD_DURATION;
           spawnPopup(p.x, p.y, "SPREAD", Arcade.theme().powerupB);
           spawnParticles(p.x, p.y, Arcade.theme().powerupB);
+        } else {
+          ship.rapidTime = RAPID_DURATION;
+          spawnPopup(p.x, p.y, "RAPID", Arcade.theme().collectible);
+          spawnParticles(p.x, p.y, Arcade.theme().collectible);
         }
         Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
         powerups.splice(i, 1);
@@ -261,7 +314,7 @@
     });
 
     powerups.forEach(function (p) {
-      const color = p.kind === "shield" ? th.powerupA : th.powerupB;
+      const color = p.kind === "shield" ? th.powerupA : p.kind === "spread" ? th.powerupB : th.collectible;
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(p.t);
       ctx.strokeStyle = color + "4d";
@@ -277,7 +330,7 @@
     });
 
     enemies.forEach(function (e) {
-      const color = e.kind === "saucer" ? th.hazardB : th.hazardA;
+      const color = e.kind === "boss" ? th.hazardB : e.kind === "saucer" ? th.hazardB : e.kind === "zigzag" ? th.collectible : th.hazardA;
       ctx.save();
       ctx.fillStyle = color;
       if (e.kind === "saucer") {
@@ -288,6 +341,36 @@
         ctx.globalAlpha = 1;
         ctx.beginPath();
         ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, e.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (e.kind === "boss") {
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath();
+        ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2 + 8, e.h / 2 + 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, e.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = th.hazardA;
+        ctx.beginPath();
+        ctx.ellipse(e.x + e.w / 2, e.y + e.h * 0.4, e.w * 0.22, e.h * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (e.kind === "zigzag") {
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        ctx.moveTo(e.x + e.w / 2, e.y - 4);
+        ctx.lineTo(e.x + e.w + 4, e.y + e.h / 2);
+        ctx.lineTo(e.x + e.w / 2, e.y + e.h + 4);
+        ctx.lineTo(e.x - 4, e.y + e.h / 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.moveTo(e.x + e.w / 2, e.y);
+        ctx.lineTo(e.x + e.w, e.y + e.h / 2);
+        ctx.lineTo(e.x + e.w / 2, e.y + e.h);
+        ctx.lineTo(e.x, e.y + e.h / 2);
+        ctx.closePath();
         ctx.fill();
       } else {
         ctx.globalAlpha = 0.3;
@@ -365,7 +448,7 @@
     accent: "#ff2bd6",
     canvasW: W,
     canvasH: H,
-    description: "Dein Schiff schießt automatisch. Weiche Gegnern und ihrem Feuer aus.<br>Grüne Kapseln geben ein Schild, magenta Kapseln kurzzeitig Streufeuer. Größere Gegner brauchen mehrere Treffer.",
+    description: "Dein Schiff schießt automatisch. Weiche Gegnern und ihrem Feuer aus.<br>Grüne Kapseln geben ein Schild, magenta Kapseln Streufeuer, gelbe Kapseln Dauerfeuer. Flinke Zickzack-Jäger sind schwer zu treffen, und alle 45 Sekunden erscheint ein Boss mit Fächerfeuer.",
     controlsHint: "Bewegen: ← → / A D · oder Ziehen mit Maus/Finger",
     startLabel: "Angriff starten",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "wave", label: "Welle" }],
