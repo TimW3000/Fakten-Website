@@ -254,9 +254,12 @@ html[data-theme="retro"] body {
   width: 100%;
   max-width: 760px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   margin-top: 10px;
+}
+@media (max-width: 520px) {
+  .hub-grid { grid-template-columns: 1fr; }
 }
 
 .hub-card {
