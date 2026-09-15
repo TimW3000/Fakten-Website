@@ -9,6 +9,8 @@
   const START_INTERVAL = 0.14, MIN_INTERVAL = 0.062;
 
   let snake, dir, nextDir, food, bonus, bonusTimer, bonusSpawnTimer, particles, popups;
+  let walls, shrinkPickup, shrinkPickupTimer, shrinkSpawnTimer;
+  let slowPickup, slowPickupTimer, slowSpawnTimer, slowTime;
   let score = 0, moveTimer = 0, interval = START_INTERVAL;
   let shakeT = 0;
   let swipeStart = null;
@@ -21,13 +23,31 @@
     particles = []; popups = [];
     score = 0; moveTimer = 0; interval = START_INTERVAL; shakeT = 0;
     bonus = null; bonusTimer = 0; bonusSpawnTimer = 9 + Math.random() * 6;
+    walls = buildWalls();
+    shrinkPickup = null; shrinkPickupTimer = 0; shrinkSpawnTimer = 10 + Math.random() * 6;
+    slowPickup = null; slowPickupTimer = 0; slowSpawnTimer = 13 + Math.random() * 7; slowTime = 0;
     food = spawnFood();
     Arcade.setHud("score", 0);
     Arcade.setHud("length", snake.length);
   }
 
+  function buildWalls() {
+    const list = [];
+    const cx = Math.floor(COLS / 2), cy = Math.floor(ROWS / 2);
+    let tries = 0;
+    while (list.length < 10 && tries < 500) {
+      tries++;
+      const x = Math.floor(Math.random() * COLS), y = Math.floor(Math.random() * ROWS);
+      if (Math.abs(x - cx) < 6 && Math.abs(y - cy) < 5) continue;
+      if (list.some(function (w) { return w.x === x && w.y === y; })) continue;
+      list.push({ x: x, y: y });
+    }
+    return list;
+  }
+
   function occupied(x, y, extra) {
     for (let i = 0; i < snake.length; i++) if (snake[i].x === x && snake[i].y === y) return true;
+    for (let i = 0; i < walls.length; i++) if (walls[i].x === x && walls[i].y === y) return true;
     if (extra && extra.x === x && extra.y === y) return true;
     return false;
   }
@@ -47,6 +67,22 @@
     bonusTimer = 6;
   }
 
+  function spawnShrinkFood() {
+    let x, y, tries = 0;
+    do { x = Math.floor(Math.random() * COLS); y = Math.floor(Math.random() * ROWS); tries++; }
+    while ((occupied(x, y) || (food && food.x === x && food.y === y) || (bonus && bonus.x === x && bonus.y === y) || (slowPickup && slowPickup.x === x && slowPickup.y === y)) && tries < 200);
+    shrinkPickup = { x: x, y: y };
+    shrinkPickupTimer = 7;
+  }
+
+  function spawnSlowFood() {
+    let x, y, tries = 0;
+    do { x = Math.floor(Math.random() * COLS); y = Math.floor(Math.random() * ROWS); tries++; }
+    while ((occupied(x, y) || (food && food.x === x && food.y === y) || (bonus && bonus.x === x && bonus.y === y) || (shrinkPickup && shrinkPickup.x === x && shrinkPickup.y === y)) && tries < 200);
+    slowPickup = { x: x, y: y };
+    slowPickupTimer = 7;
+  }
+
   function spawnParticles(x, y, color, n) {
     for (let i = 0; i < (n || 16); i++) {
       const ang = Math.random() * Math.PI * 2, spd = 60 + Math.random() * 180;
@@ -64,8 +100,16 @@
     bonusSpawnTimer -= dt;
     if (!bonus && bonusSpawnTimer <= 0) { spawnBonus(); bonusSpawnTimer = 14 + Math.random() * 8; }
 
+    if (shrinkPickup) { shrinkPickupTimer -= dt; if (shrinkPickupTimer <= 0) shrinkPickup = null; }
+    shrinkSpawnTimer -= dt;
+    if (!shrinkPickup && shrinkSpawnTimer <= 0) { spawnShrinkFood(); shrinkSpawnTimer = 16 + Math.random() * 9; }
+
+    if (slowPickup) { slowPickupTimer -= dt; if (slowPickupTimer <= 0) slowPickup = null; }
+    slowSpawnTimer -= dt;
+    if (!slowPickup && slowSpawnTimer <= 0) { spawnSlowFood(); slowSpawnTimer = 16 + Math.random() * 9; }
+    if (slowTime > 0) slowTime -= dt;
+
     if (moveTimer <= 0) {
-      moveTimer = interval;
       dir = nextDir;
       const head = snake[0];
       const nx = head.x + dir.x, ny = head.y + dir.y;
@@ -73,6 +117,9 @@
       if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) { crash(); return; }
       for (let i = 0; i < snake.length; i++) {
         if (snake[i].x === nx && snake[i].y === ny) { crash(); return; }
+      }
+      for (let i = 0; i < walls.length; i++) {
+        if (walls[i].x === nx && walls[i].y === ny) { crash(); return; }
       }
 
       snake.unshift({ x: nx, y: ny });
@@ -94,9 +141,26 @@
         bonus = null;
         grew = true;
       }
+      if (shrinkPickup && nx === shrinkPickup.x && ny === shrinkPickup.y) {
+        const shrinkAmt = Math.min(3, Math.max(0, snake.length - 3));
+        for (let k = 0; k < shrinkAmt; k++) snake.pop();
+        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "-" + shrinkAmt, Arcade.theme().hazardA);
+        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, Arcade.theme().hazardA, 18);
+        Arcade.beep(500, 150, 0.2, "sawtooth", 0.12);
+        shrinkPickup = null;
+        grew = true;
+      }
+      if (slowPickup && nx === slowPickup.x && ny === slowPickup.y) {
+        slowTime = 5;
+        spawnPopup(nx * CELL + CELL / 2, ny * CELL + CELL / 2, "LANGSAM", Arcade.theme().hazardB);
+        spawnParticles(nx * CELL + CELL / 2, ny * CELL + CELL / 2, Arcade.theme().hazardB, 18);
+        Arcade.beep(180, 90, 0.25, "sawtooth", 0.12);
+        slowPickup = null;
+      }
       if (!grew) snake.pop();
 
       interval = Math.max(MIN_INTERVAL, START_INTERVAL - snake.length * 0.0028);
+      moveTimer = interval * (slowTime > 0 ? 1.8 : 1);
       Arcade.setHud("score", Math.floor(score));
       Arcade.setHud("length", snake.length);
     }
@@ -161,11 +225,44 @@
     for (let y = 0; y <= ROWS; y++) { ctx.moveTo(0, y * CELL); ctx.lineTo(w, y * CELL); }
     ctx.stroke();
 
+    walls.forEach(function (w) {
+      ctx.save();
+      ctx.fillStyle = th.groundDim;
+      ctx.fillRect(w.x * CELL + 1, w.y * CELL + 1, CELL - 2, CELL - 2);
+      ctx.strokeStyle = th.ground; ctx.lineWidth = 1.5;
+      ctx.strokeRect(w.x * CELL + 1, w.y * CELL + 1, CELL - 2, CELL - 2);
+      ctx.beginPath();
+      ctx.moveTo(w.x * CELL + 1, w.y * CELL + CELL / 2); ctx.lineTo(w.x * CELL + CELL - 1, w.y * CELL + CELL / 2);
+      ctx.moveTo(w.x * CELL + CELL / 2, w.y * CELL + 1); ctx.lineTo(w.x * CELL + CELL / 2, w.y * CELL + CELL - 1);
+      ctx.strokeStyle = th.ground + "66"; ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    });
+
     if (food) roundCell(ctx, food.x, food.y, 5, th.collectible, !Arcade.isRetro());
     if (bonus) {
       const pulse = bonusTimer < 2 ? Math.abs(Math.sin(bonusTimer * 10)) : 1;
       ctx.globalAlpha = 0.5 + pulse * 0.5;
       roundCell(ctx, bonus.x, bonus.y, 3, th.powerupB, !Arcade.isRetro());
+      ctx.globalAlpha = 1;
+    }
+    if (shrinkPickup) {
+      const pulse = shrinkPickupTimer < 2 ? Math.abs(Math.sin(shrinkPickupTimer * 10)) : 1;
+      ctx.globalAlpha = 0.5 + pulse * 0.5;
+      roundCell(ctx, shrinkPickup.x, shrinkPickup.y, 6, th.hazardA, !Arcade.isRetro());
+      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(shrinkPickup.x * CELL + 7, shrinkPickup.y * CELL + CELL / 2);
+      ctx.lineTo(shrinkPickup.x * CELL + CELL - 7, shrinkPickup.y * CELL + CELL / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (slowPickup) {
+      const pulse = slowPickupTimer < 2 ? Math.abs(Math.sin(slowPickupTimer * 10)) : 1;
+      ctx.globalAlpha = 0.5 + pulse * 0.5;
+      roundCell(ctx, slowPickup.x, slowPickup.y, 6, th.hazardB, !Arcade.isRetro());
       ctx.globalAlpha = 1;
     }
 
@@ -222,7 +319,7 @@
     accent: "#00f6ff",
     canvasW: W,
     canvasH: H,
-    description: "Sammle die gelben Orbs und wachse. Wände und der eigene Schwanz sind tödlich.<br>Magenta Bonus-Orbs geben mehr Punkte, verschwinden aber wieder.",
+    description: "Sammle die gelben Orbs und wachse. Feldwände, Mauerblöcke und der eigene Schwanz sind tödlich.<br>Magenta Bonus-Orbs geben mehr Punkte, orange Orbs lassen dich schrumpfen, pinke Orbs verlangsamen dich kurzzeitig.",
     controlsHint: "Richtung: Pfeiltasten / WASD · oder Wischen mit dem Finger",
     startLabel: "Los geht's",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "length", label: "Länge" }],
