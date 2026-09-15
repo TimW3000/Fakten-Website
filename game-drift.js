@@ -18,39 +18,60 @@
   const MAX_SPEED = 780;
   const SHIELD_DURATION = 5;
 
-  let player, cars, boosts, shields, particles, popups, laneMarks, roadside;
+  let player, cars, boosts, shields, magnets, slicks, particles, popups, laneMarks, roadside;
   let score = 0, distance = 0, speed = BASE_SPEED, elapsed = 0;
-  let spawnTimer = 0, boostTimer = 0, shieldSpawnTimer = 0, boostBonusT = 0;
+  let spawnTimer = 0, boostTimer = 0, shieldSpawnTimer = 0, magnetSpawnTimer = 0, slickTimer = 0, boostBonusT = 0;
   let shakeT = 0;
   let steer = 0; // -1, 0, 1 from keyboard
   let dragTargetX = null;
 
   function onStart() {
-    player = { x: W / 2 - CAR_W / 2, vx: 0, shielded: false, shieldTime: 0, trail: [] };
-    cars = []; boosts = []; shields = []; particles = []; popups = [];
+    player = { x: W / 2 - CAR_W / 2, vx: 0, shielded: false, shieldTime: 0, magnetTime: 0, slickTime: 0, trail: [] };
+    cars = []; boosts = []; shields = []; magnets = []; slicks = []; particles = []; popups = [];
     laneMarks = [];
     for (let i = 0; i < 10; i++) laneMarks.push(i * 70);
     roadside = [];
     for (let i = 0; i < 16; i++) roadside.push({ y: i * 60, side: Math.random() < 0.5 ? "l" : "r", h: 30 + Math.random() * 40 });
     score = 0; distance = 0; speed = BASE_SPEED; elapsed = 0;
-    spawnTimer = 1; boostTimer = 1.8; shieldSpawnTimer = 13 + Math.random() * 5; boostBonusT = 0;
+    spawnTimer = 1; boostTimer = 1.8; shieldSpawnTimer = 13 + Math.random() * 5;
+    magnetSpawnTimer = 15 + Math.random() * 8; slickTimer = 9 + Math.random() * 5; boostBonusT = 0;
     shakeT = 0; steer = 0; dragTargetX = null;
     Arcade.setHud("score", 0);
     Arcade.setHud("speed", "x1.0");
   }
 
   function spawnCar() {
-    const w = CAR_W + Math.random() * 8;
-    const x = Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w);
+    const roll = Math.random();
     const th = Arcade.theme();
-    const hue = Math.random() < 0.5 ? th.hazardB : th.hazardA;
-    cars.push({ x: x, y: -CAR_H, w: w, h: CAR_H + Math.random() * 10, color: hue });
+    if (roll < 0.2) {
+      // Truck: breit, langsamer, schwerer auszuweichen
+      const w = ROAD_W * 0.55;
+      const x = Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w);
+      cars.push({ kind: "truck", x: x, y: -CAR_H * 1.6, w: w, h: CAR_H * 1.5, color: th.hazardA, vxSelf: 0 });
+    } else if (roll < 0.42) {
+      // Schlingerer: driftet seitlich hin und her
+      const w = CAR_W;
+      const x = Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w);
+      cars.push({ kind: "swerve", x: x, y: -CAR_H, w: w, h: CAR_H, color: th.hazardB, phase: Math.random() * Math.PI * 2 });
+    } else {
+      const w = CAR_W + Math.random() * 8;
+      const x = Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w);
+      const hue = Math.random() < 0.5 ? th.hazardB : th.hazardA;
+      cars.push({ kind: "normal", x: x, y: -CAR_H, w: w, h: CAR_H + Math.random() * 10, color: hue });
+    }
   }
   function spawnBoost() {
     boosts.push({ x: ROAD_LEFT + 20 + Math.random() * (ROAD_W - 40), y: -20, r: 10, t: Math.random() * Math.PI * 2 });
   }
   function spawnShield() {
     shields.push({ x: ROAD_LEFT + 20 + Math.random() * (ROAD_W - 40), y: -20, r: 12, t: Math.random() * Math.PI * 2 });
+  }
+  function spawnMagnet() {
+    magnets.push({ x: ROAD_LEFT + 20 + Math.random() * (ROAD_W - 40), y: -20, r: 12, t: Math.random() * Math.PI * 2 });
+  }
+  function spawnSlick() {
+    const w = 70 + Math.random() * 40;
+    slicks.push({ x: Arcade.clamp(ROAD_LEFT + Math.random() * (ROAD_W - w), ROAD_LEFT, ROAD_RIGHT - w), y: -30, w: w, h: 26 });
   }
   function spawnParticles(x, y, color) {
     for (let i = 0; i < 22; i++) {
@@ -70,11 +91,12 @@
     Arcade.setHud("score", Math.floor(score));
     Arcade.setHud("speed", "x" + (speed / BASE_SPEED).toFixed(1));
 
+    const control = player.slickTime > 0 ? 0.4 : 1;
     if (dragTargetX != null) {
       const dx = dragTargetX - (player.x + CAR_W / 2);
-      player.x += Arcade.clamp(dx, -420 * dt, 420 * dt);
+      player.x += Arcade.clamp(dx, -420 * control * dt, 420 * control * dt);
     } else {
-      player.vx += steer * STEER_ACCEL * dt;
+      player.vx += steer * STEER_ACCEL * control * dt;
       player.vx *= STEER_FRICTION;
       player.vx = Arcade.clamp(player.vx, -MAX_VX, MAX_VX);
       player.x += player.vx * dt;
@@ -85,6 +107,8 @@
       player.shieldTime -= dt;
       if (player.shieldTime <= 0) player.shielded = false;
     }
+    if (player.magnetTime > 0) player.magnetTime -= dt;
+    if (player.slickTime > 0) player.slickTime -= dt;
 
     player.trail.push({ x: player.x + CAR_W / 2, y: PLAYER_Y + CAR_H });
     if (player.trail.length > 8) player.trail.shift();
@@ -105,10 +129,19 @@
     if (boostTimer <= 0) { spawnBoost(); boostTimer = 1.6 + Math.random() * 1.6; }
     shieldSpawnTimer -= dt;
     if (shieldSpawnTimer <= 0) { spawnShield(); shieldSpawnTimer = 16 + Math.random() * 8; }
+    magnetSpawnTimer -= dt;
+    if (magnetSpawnTimer <= 0) { spawnMagnet(); magnetSpawnTimer = 17 + Math.random() * 9; }
+    slickTimer -= dt;
+    if (slickTimer <= 0) { spawnSlick(); slickTimer = 10 + Math.random() * 6; }
 
     for (let i = cars.length - 1; i >= 0; i--) {
       const c = cars[i];
       c.y += speed * dt;
+      if (c.kind === "swerve") {
+        c.phase += dt * 2.6;
+        const drift = Math.sin(c.phase) * 90 * dt;
+        c.x = Arcade.clamp(c.x + drift, ROAD_LEFT, ROAD_RIGHT - c.w);
+      }
       if (Arcade.rectsOverlap(player.x, PLAYER_Y, CAR_W, CAR_H, c.x, c.y, c.w, c.h)) {
         if (player.shielded) {
           spawnParticles(c.x + c.w / 2, c.y + c.h / 2, Arcade.theme().powerupA);
@@ -121,9 +154,15 @@
       if (c.y > H + 10) cars.splice(i, 1);
     }
 
+    const playerCx = player.x + CAR_W / 2, playerCy = PLAYER_Y + CAR_H / 2;
     for (let i = boosts.length - 1; i >= 0; i--) {
       const b = boosts[i];
       b.y += speed * dt; b.t += dt * 4;
+      if (player.magnetTime > 0) {
+        const dx = playerCx - b.x, dy = playerCy - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 200 && dist > 1) { b.x += (dx / dist) * 460 * dt; b.y += (dy / dist) * 460 * dt; }
+      }
       if (Arcade.circlesOverlap(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, CAR_W / 2, b.x, b.y, b.r)) {
         score += 25;
         boostBonusT = 1.6;
@@ -148,6 +187,32 @@
         continue;
       }
       if (s.y > H + 10) shields.splice(i, 1);
+    }
+
+    for (let i = magnets.length - 1; i >= 0; i--) {
+      const m = magnets[i];
+      m.y += speed * dt; m.t += dt * 3;
+      if (Arcade.circlesOverlap(player.x + CAR_W / 2, PLAYER_Y + CAR_H / 2, CAR_W / 2, m.x, m.y, m.r)) {
+        player.magnetTime = 7;
+        spawnPopup(m.x, m.y, "MAGNET", Arcade.theme().powerupB);
+        spawnParticles(m.x, m.y, Arcade.theme().powerupB);
+        Arcade.beep(220, 1100, 0.28, "sawtooth", 0.1);
+        magnets.splice(i, 1);
+        continue;
+      }
+      if (m.y > H + 10) magnets.splice(i, 1);
+    }
+
+    for (let i = slicks.length - 1; i >= 0; i--) {
+      const sl = slicks[i];
+      sl.y += speed * dt;
+      if (!sl.hit && Arcade.rectsOverlap(player.x, PLAYER_Y, CAR_W, CAR_H, sl.x, sl.y, sl.w, sl.h)) {
+        sl.hit = true;
+        player.slickTime = 2;
+        spawnPopup(player.x + CAR_W / 2, PLAYER_Y, "GLATT!", Arcade.theme().hazardA);
+        Arcade.beep(180, 120, 0.2, "sawtooth", 0.08);
+      }
+      if (sl.y > H + 10) slicks.splice(i, 1);
     }
 
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -292,8 +357,44 @@
       ctx.strokeStyle = th.powerupA; ctx.lineWidth = 3; ctx.stroke();
       ctx.restore();
     });
+    magnets.forEach(function (m) {
+      const my = m.y + Math.sin(m.t) * 3;
+      ctx.save();
+      ctx.translate(m.x, my); ctx.rotate(m.t * 0.5);
+      ctx.strokeStyle = th.powerupB + "4d"; ctx.lineWidth = 7;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2, px = Math.cos(ang) * m.r, pyy = Math.sin(ang) * m.r;
+        if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = th.powerupB; ctx.lineWidth = 3; ctx.stroke();
+      ctx.restore();
+    });
+    slicks.forEach(function (sl) {
+      ctx.save();
+      ctx.fillStyle = "rgba(10,10,20,0.55)";
+      ctx.beginPath();
+      ctx.ellipse(sl.x + sl.w / 2, sl.y + sl.h / 2, sl.w / 2, sl.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    });
 
-    cars.forEach(function (c) { drawCar(ctx, c.x, c.y, c.w, c.h, c.color); });
+    cars.forEach(function (c) {
+      if (c.kind === "truck") {
+        ctx.save();
+        ctx.fillStyle = c.color;
+        ctx.fillRect(c.x, c.y, c.w, c.h);
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(c.x, c.y, c.w, c.h);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillRect(c.x + c.w * 0.1, c.y + c.h * 0.08, c.w * 0.8, c.h * 0.18);
+        ctx.restore();
+      } else {
+        drawCar(ctx, c.x, c.y, c.w, c.h, c.color);
+      }
+    });
 
     if (!retro) {
       player.trail.forEach(function (t, i) {
@@ -355,7 +456,7 @@
     accent: "#ff7a1a",
     canvasW: W,
     canvasH: H,
-    description: "Steuere deinen Neon-Wagen durch den Verkehr. Ein Zusammenstoß beendet den Run.<br>Cyan-Kristalle geben Bonuspunkte und einen kurzen Boost, grüne Schilde machen dich kurz unverwundbar.",
+    description: "Steuere deinen Neon-Wagen durch den Verkehr — auch breite Laster und schlingernde Fahrer. Ein Zusammenstoß beendet den Run.<br>Kristalle geben Bonuspunkte und Boost, Schilde machen unverwundbar, Magnete ziehen Boosts an. Ölflecken machen die Lenkung kurz rutschig.",
     controlsHint: "Lenken: ← → / A D · oder Ziehen mit Maus/Finger",
     startLabel: "Losfahren",
     hud: [{ id: "score", label: "Score" }, { id: "best", label: "Best" }, { id: "speed", label: "Tempo" }],
